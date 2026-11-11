@@ -6,6 +6,15 @@ layers that blend into new colors when seen from the side).
 
 Everything runs locally in the browser. Just open `index.html` (or serve the folder, see below).
 
+![Photo, predicted print with lit relief, and close-up of the layer stripes](docs/screenshot.png)
+
+*The app's preview for a 100 mm plaque in cyan, magenta, yellow and black, with AI depth
+relief and a 4 mm frame: the source photo, the predicted print as seen from a distance, and a
+close-up of the actual alternating layer stripes. This is a prediction, not a photo of a print.*
+
+*Sample photo: NASA, [official portrait of Sally Ride (1984)](https://commons.wikimedia.org/wiki/File:Sally_Ride_(1984).jpg),
+public domain (work of the U.S. federal government), via Wikimedia Commons.*
+
 ## What it does
 
 - **Image → printable colors:** builds every Cycle Mix your 4 filaments can make, picks the
