@@ -4,7 +4,9 @@ A single-page browser tool that turns a photo into an upright, full-color plaque
 Snapmaker U1, using Snapmaker Orca's **Full Spectrum** color mixing (alternating filament
 layers that blend into new colors when seen from the side).
 
-Everything runs locally in the browser. Just open `index.html` (or serve the folder, see below).
+**Try it:** https://dmrosen77.github.io/upright-mix-forge/
+
+Everything runs locally in the browser. Use the link above, or open `index.html` (or serve the folder, see below).
 
 ![Photo, predicted print with lit relief, and close-up of the layer stripes](docs/screenshot.png)
 

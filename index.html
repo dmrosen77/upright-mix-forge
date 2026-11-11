@@ -75,6 +75,12 @@ ol.steps li{margin:4px 0}
   <aside>
     <div class="panel">
       <h2>Image</h2>
+      <div class="actions" style="margin:0 0 8px">
+        <button id="settingsSave" title="Download all settings as a file">Save settings…</button>
+        <button id="settingsLoadBtn" title="Load settings from a file">Load…</button><input type="file" id="settingsFile" accept="application/json,.json" hidden>
+        <button id="settingsReset" title="Back to the defaults">Reset</button>
+      </div>
+      <div id="settingsNote" style="color:var(--muted);margin:-2px 0 8px;font-size:12px">Settings save automatically in this browser.</div>
       <div class="drop" id="drop">Drop an image here or click to choose
         <input type="file" id="file" accept="image/*,.heic,.heif" hidden>
       </div>
@@ -1562,6 +1568,66 @@ $('iphoneDepthBtn').addEventListener('click', () => {
   depthSrc = iphoneDepth.canvas; $('relief').checked = true;
   $('depthStatus').textContent = `Using the iPhone's ${iphoneDepth.kind} map (${iphoneDepth.w} × ${iphoneDepth.h}).`;
   run();
+});
+</script>
+<script>
+"use strict";
+// ---------- settings: auto-saved in this browser, plus file export/import ----------
+// Every control in the side panel (and the export options) is saved on change and restored on load.
+// Images, depth maps and results are not saved: only the settings that produce them.
+const SETTINGS_KEY = 'umf.settings.v1';
+const SKIP = new Set(['file', 'settingsFile', 'photoFile', 'calibFile']);
+const settingEls = () => [...document.querySelectorAll('aside input, aside select, #preassign, #mixStart, #cardMode')]
+  .filter(el => el.id && !SKIP.has(el.id) && el.type !== 'file');
+const defaults = {};
+settingEls().forEach(el => defaults[el.id] = el.type === 'checkbox' ? el.checked : el.value);
+function collectSettings(){
+  const o = {}; settingEls().forEach(el => o[el.id] = el.type === 'checkbox' ? el.checked : el.value); return o;
+}
+function applySettings(o){
+  for (const el of settingEls()){
+    if (!(el.id in o)) continue;
+    if (el.type === 'checkbox') el.checked = !!o[el.id]; else el.value = o[el.id];
+  }
+  refreshFilOptions();
+  $('mixStart').disabled = $('preassign').checked;
+  if (img) run();
+  refreshCardPreview();
+  $('calibStatus').textContent = calibSummary();
+}
+let saveTimer = 0;
+function saveSettingsSoon(){ clearTimeout(saveTimer); saveTimer = setTimeout(() => store.set(SETTINGS_KEY, collectSettings()), 300); }
+document.addEventListener('input', e => { if (settingEls().includes(e.target)) saveSettingsSoon(); }, true);
+document.addEventListener('change', e => { if (settingEls().includes(e.target)) saveSettingsSoon(); }, true);
+// "Use this set" and Fit to U1 change values from code, which fires no events: save after clicks too.
+document.addEventListener('click', e => { if (e.target.closest && e.target.closest('button')) setTimeout(saveSettingsSoon, 50); }, true);
+
+const saved = store.get(SETTINGS_KEY);
+if (saved){ applySettings(saved); $('settingsNote').textContent = 'Restored your last settings. They save automatically in this browser.'; }
+
+$('settingsReset').addEventListener('click', () => {
+  applySettings(defaults); store.set(SETTINGS_KEY, defaults);
+  $('settingsNote').textContent = 'Back to defaults. (Spools and calibration are kept.)';
+});
+$('settingsSave').addEventListener('click', () => {
+  const data = {app: 'upright-mix-forge', version: 1, settings: collectSettings(), spools, calibration: calib, card: store.get(CARD_KEY)};
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'}));
+  a.download = 'upright-mix-forge-settings.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+});
+$('settingsLoadBtn').addEventListener('click', () => $('settingsFile').click());
+$('settingsFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text());
+    if (!j.settings) throw new Error('not a settings file');
+    if (Array.isArray(j.spools)){ spools = j.spools; saveSpools(); renderSpools(); }
+    if (j.calibration && j.calibration.entries){ calib = j.calibration; store.set(CALIB_KEY, calib); }
+    if (j.card) store.set(CARD_KEY, j.card);
+    applySettings(j.settings); store.set(SETTINGS_KEY, collectSettings());
+    $('settingsNote').textContent = `Loaded settings from ${f.name}.`;
+  } catch (err) { $('settingsNote').innerHTML = `<span class="warn">Couldn't load: ${err.message}</span>`; }
+  e.target.value = '';
 });
 </script>
 </body>
