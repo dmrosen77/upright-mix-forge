@@ -35,6 +35,28 @@ public domain (work of the U.S. federal government), via Wikimedia Commons.*
 - **Fit to U1**, stand or **wall mount** (keyhole slots), optional **frame**, tool-change and
   time estimates.
 
+## Size, time and Fit to U1
+
+**Fit to U1** sets the largest plaque that fits the U1's 270 × 270 × 270 mm build volume for
+your photo's shape (editable if your printer differs): up to about 252 mm of image width and
+268 mm of total height. It leaves at least 70 mm of bed for the prime tower, widens the stand to
+about 20% of the height for tall prints, and makes the back at least 4 mm thick.
+
+Largest doesn't mean best for a first print. **Height drives print time:** every 0.08 mm layer
+needs up to four tool changes, and on the U1 each change takes roughly 30 s including the prime
+tower. Width costs little. Some reference points from real slices:
+
+| Print | Tool changes | Orca estimate |
+|---|---|---|
+| Swatch card, 10 tiles (~106 × 10 mm) | 111 | 1 h 30 min |
+| Full-height plaque, dithered photo (~200 × 268 mm) | 8,599 | 5 d 14 h |
+
+The stats line under the previews shows the tool-change count and estimated swap time for the
+current settings (set **Tool change time** to what your printer actually takes). Start with a
+small test, around 70–100 mm wide, with dithering off and some **Clean up specks**, which cuts the
+number of tiny color regions and the time a lot. Check Orca's estimate before committing to a
+big print.
+
 ## Using it with Snapmaker Orca
 
 1. Start a **new project** (empty plate) with the U1 and your 4 filaments in slots 1–4, in the
