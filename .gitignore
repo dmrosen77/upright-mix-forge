@@ -1,0 +1,8 @@
+.DS_Store
+*.3mf
+*.gcode
+*.heic
+*.HEIC
+calibration*.json
+mix-calibration.json
+.claude/

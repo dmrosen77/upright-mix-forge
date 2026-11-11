@@ -1,0 +1,1568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Upright Mix Forge</title>
+<style>
+:root{
+  --bg:#f4f3ef; --panel:#ffffff; --ink:#1d1d1b; --muted:#6b6a65; --line:#dedcd5;
+  --accent:#2a6df4; --accent-ink:#fff; --warn:#b85c00; --field:#faf9f6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#151614; --panel:#1f201d; --ink:#ecebe6; --muted:#9a9890; --line:#34352f;
+    --accent:#6d9bff; --accent-ink:#0d1020; --warn:#f0a050; --field:#191a17;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#151614; --panel:#1f201d; --ink:#ecebe6; --muted:#9a9890; --line:#34352f;
+  --accent:#6d9bff; --accent-ink:#0d1020; --warn:#f0a050; --field:#191a17;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+header h1{font-size:18px;margin:0}
+header p{margin:0;color:var(--muted)}
+main{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:16px 20px;align-items:start}
+@media (max-width:860px){main{grid-template-columns:1fr;padding:12px 16px}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.panel h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.panel + .panel{margin-top:12px}
+label.row{display:grid;grid-template-columns:1fr 92px;align-items:center;gap:8px;margin:6px 0}
+label.row span small{color:var(--muted)}
+input[type=number],select,input[type=text]{width:100%;padding:5px 7px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--ink);font:inherit}
+input[type=range]{width:100%}
+.fil{display:grid;grid-template-columns:22px 36px 1fr;gap:8px;align-items:center;margin:6px 0}
+.fil b{font-variant-numeric:tabular-nums;color:var(--muted)}
+.fil input[type=color]{width:36px;height:28px;border:1px solid var(--line);border-radius:6px;padding:0;background:none}
+.drop{border:1.5px dashed var(--line);border-radius:10px;padding:18px;text-align:center;color:var(--muted);cursor:pointer}
+.drop.over{border-color:var(--accent);color:var(--accent)}
+button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--field);color:var(--ink);cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button:disabled{opacity:.5;cursor:not-allowed}
+.check{display:flex;gap:8px;align-items:center;margin:6px 0}
+.views{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:1100px){.views{grid-template-columns:1fr}}
+.view h3{font-size:13px;margin:0 0 6px;display:flex;justify-content:space-between;gap:8px}
+.view h3 small{color:var(--muted);font-weight:400}
+.canvasbox{background:repeating-conic-gradient(var(--line) 0 25%,transparent 0 50%) 0 0/16px 16px;border-radius:8px;overflow:hidden;display:flex;justify-content:center;align-items:center;min-height:160px}
+canvas{max-width:100%;height:auto;display:block;image-rendering:pixelated}
+#far{cursor:crosshair;image-rendering:auto}
+.stats{display:flex;flex-wrap:wrap;gap:8px 18px;margin:12px 0 0;color:var(--muted)}
+.stats b{color:var(--ink);font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--muted);font-weight:500}
+.sw{display:inline-block;width:28px;height:18px;border-radius:4px;border:1px solid var(--line);vertical-align:middle}
+.stripe{display:inline-flex;height:18px;border-radius:4px;overflow:hidden;border:1px solid var(--line);vertical-align:middle;flex-direction:column;width:28px}
+.stripe i{flex:1}
+code{background:var(--field);border:1px solid var(--line);padding:1px 5px;border-radius:4px}
+.warn{color:var(--warn)}
+ol.steps{margin:6px 0 0;padding-left:20px}
+ol.steps li{margin:4px 0}
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+#status{color:var(--muted)}
+.tablewrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<header>
+  <h1>Upright Mix Forge</h1>
+  <p>Image → upright plaque → 3MF for Snapmaker Orca Full Spectrum on the U1</p>
+</header>
+<main>
+  <aside>
+    <div class="panel">
+      <h2>Image</h2>
+      <div class="drop" id="drop">Drop an image here or click to choose
+        <input type="file" id="file" accept="image/*,.heic,.heif" hidden>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Filaments (U1 slots)</h2>
+      <div id="filaments"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Spools you have (or could buy)</h2>
+      <div id="spools"></div>
+      <div class="actions" style="margin-top:6px">
+        <button id="addSpool">+ Spool</button>
+        <button class="primary" id="findSet">Find best 4 for this image</button>
+      </div>
+      <div id="setStatus" style="color:var(--muted);margin-top:6px"></div>
+      <div id="setResults"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Plaque</h2>
+      <label class="row"><span>Image width <small>mm</small></span><input type="number" id="width" value="120" min="20" max="260" step="1"></label>
+      <label class="row"><span>Layer height <small>mm</small></span><input type="number" id="lh" value="0.08" min="0.04" max="0.2" step="0.01"></label>
+      <label class="row"><span>Layers per row <small>(mix cycle)</small></span><input type="number" id="L" value="4" min="2" max="6" step="1"></label>
+      <label class="row"><span>Column width <small>mm</small></span><input type="number" id="colw" value="0.8" min="0.4" max="3" step="0.1"></label>
+      <label class="row"><span>Back thickness <small>mm, behind relief</small></span><input type="number" id="thick" value="3" min="1" max="10" step="0.5"></label>
+      <label class="row"><span>Base height <small>mm</small></span><input type="number" id="baseh" value="4" min="0" max="20" step="0.5"></label>
+      <label class="row"><span>Base depth <small>mm</small></span><input type="number" id="based" value="24" min="5" max="60" step="1"></label>
+      <label class="row"><span>Base filament</span><select id="basefil"></select></label>
+      <label class="row"><span>Frame width <small>mm, 0 = none</small></span><input type="number" id="frameW" value="0" min="0" max="20" step="1"></label>
+      <label class="row"><span>Frame filament</span><select id="frameFil"></select></label>
+      <div class="actions" style="margin-top:8px">
+        <button id="fitU1">Fit to U1</button>
+        <span class="check" style="margin:0"><input type="checkbox" id="wall"><label for="wall">Wall mount</label></span>
+        <select id="keyholes" style="width:auto" title="Keyhole slots in the back"><option value="auto">Keyholes: auto</option><option value="1">1 keyhole</option><option value="2">2 keyholes</option></select>
+        <span style="color:var(--muted)">Build volume <input type="number" id="bvX" value="270" style="width:52px"> × <input type="number" id="bvY" value="270" style="width:52px"> × <input type="number" id="bvZ" value="270" style="width:52px"> mm</span>
+      </div>
+      <label class="row"><span>Tool change time <small>s incl. prime tower (U1 ≈ 30)</small></span><input type="number" id="swapS" value="30" min="1" max="120" step="1"></label>
+      <div id="fitNote" style="color:var(--muted)"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Color</h2>
+      <label class="row"><span>Filament translucency <small>opaque → glassy</small></span><input type="range" id="transl" min="0" max="1" step="0.05" value="0.2"></label>
+      <label class="row"><span>Colors to use <small>(incl. pure)</small></span><input type="number" id="K" value="16" min="2" max="32" step="1"></label>
+      <div class="check"><input type="checkbox" id="fitTone" checked><label for="fitTone">Fit image tones to printable range</label></div>
+      <div class="check"><input type="checkbox" id="dither" checked><label for="dither">Dither (smooth gradients; more tiny regions)</label></div>
+      <label class="row"><span>Brightness</span><input type="range" id="bright" min="-0.3" max="0.3" step="0.01" value="0"></label>
+      <label class="row"><span>Contrast</span><input type="range" id="contrast" min="0.5" max="1.8" step="0.01" value="1"></label>
+      <label class="row"><span>Saturation</span><input type="range" id="sat" min="0" max="2" step="0.01" value="1.15"></label>
+      <label class="row"><span>Simplify <small>flatten areas, keep edges</small></span><input type="range" id="simplify" min="0" max="5" step="1" value="0"></label>
+      <label class="row"><span>Clean up specks</span><input type="range" id="specks" min="0" max="3" step="1" value="0"></label>
+      <label class="row"><span>Black outlines <small>0 = off</small></span><input type="range" id="outline" min="0" max="10" step="1" value="0"></label>
+      <label class="row"><span>Outline width <small>columns</small></span><input type="number" id="outlineW" value="1" min="1" max="4" step="1"></label>
+    </div>
+
+    <div class="panel">
+      <h2>3D relief</h2>
+      <div class="check"><input type="checkbox" id="relief"><label for="relief">Sculpt the front face</label></div>
+      <div class="actions" style="margin-top:4px">
+        <button id="depthBtn">Estimate depth with AI</button>
+        <button id="iphoneDepthBtn" hidden>Use iPhone depth</button>
+      </div>
+      <div id="depthStatus" style="color:var(--muted);margin:6px 0">Downloads a ~27 MB model the first time. Without it, relief uses brightness only.</div>
+      <label class="row"><span>Relief depth <small>mm</small></span><input type="number" id="reliefD" value="3" min="0.5" max="10" step="0.5"></label>
+      <label class="row"><span>Shadow from brightness <small>darker = deeper</small></span><input type="range" id="lumW" min="0" max="1" step="0.05" value="0.3"></label>
+      <label class="row"><span>Smoothing</span><input type="range" id="depthSmooth" min="0" max="6" step="1" value="2"></label>
+      <div class="check"><input type="checkbox" id="lit" checked><label for="lit">Show lighting in far view</label></div>
+      <div class="check"><input type="checkbox" id="keepDepth"><label for="keepDepth">Keep this depth when I load another image (e.g. a restyled version)</label></div>
+    </div>
+  </aside>
+
+  <section>
+    <div class="panel">
+      <div class="views">
+        <div class="view">
+          <h3>Far view <small>predicted blend · click to inspect</small></h3>
+          <div class="canvasbox"><canvas id="far" width="10" height="10"></canvas></div>
+        </div>
+        <div class="view">
+          <h3>Close-up <small>actual layer stripes</small></h3>
+          <div class="canvasbox"><canvas id="close" width="10" height="10"></canvas></div>
+        </div>
+        <div class="view">
+          <h3>Original <small>with brightness/contrast/saturation</small></h3>
+          <div class="canvasbox"><canvas id="orig" width="10" height="10"></canvas></div>
+        </div>
+        <div class="view">
+          <h3>Printable gamut <small>every mix of your 4 filaments</small></h3>
+          <div class="canvasbox"><canvas id="gamut" width="10" height="10"></canvas></div>
+        </div>
+      </div>
+      <div class="stats" id="stats"></div>
+      <div class="actions">
+        <button class="primary" id="export" disabled>Export 3MF</button>
+        <span class="check"><input type="checkbox" id="preassign" checked><label for="preassign">Include mix definitions (import into an empty plate)</label></span>
+        <label class="check" title="The first mixed-filament slot number that is free in Orca">First free mix slot <input type="number" id="mixStart" value="5" min="5" max="60" step="1" style="width:64px"></label>
+        <span id="status">Load an image to start.</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Mix recipe for Snapmaker Orca</h2>
+      <div class="tablewrap"><table id="recipe"><thead><tr><th>Slot</th><th>Blend</th><th>Stripes</th><th>Cycle pattern</th><th>Mix</th><th>Area</th></tr></thead><tbody></tbody></table></div>
+      <ol class="steps">
+        <li>In Snapmaker Orca start a <b>new project</b> (empty plate) with the U1 and your 4 filaments in slots 1–4, then <b>File → Import</b> the 3MF (don't Open it). The mixes above arrive in <b>Color Mixing</b> as slots 5, 6, … and each part is already assigned.</li>
+        <li>Check the Color Mixing list matches the table (slot numbers and Cycle patterns). If you'd already added mixes, or imported onto a plate with objects, the file's mixes aren't applied: untick <i>Include mix definitions</i>, set <b>First free mix slot</b>, add the Cycle Mixes by hand, and re-export.</li>
+        <li>Pick your real filament profile (e.g. PLA) for slots 1–4.</li>
+        <li>Set the layer height to <b id="lhNote">0.08</b> mm (first layer too, if you can) and leave Subdivide Mix Layers off.</li>
+      </ol>
+    </div>
+
+    <div class="panel">
+      <h2>Swatch card &amp; calibration</h2>
+      <p style="margin:0 0 8px;color:var(--muted)">Print a card of real mixes, photograph it, and the predictions above switch to your measured colors. Uses the same layer height, layers per row, column width, base filament and slot colors as the plaque.</p>
+      <div class="actions" style="margin-top:0">
+        <select id="cardMode" style="width:auto">
+          <option value="palette">Current image's colors</option>
+          <option value="all">Every possible mix</option>
+        </select>
+        <button id="cardExport">Export swatch 3MF</button>
+        <span id="cardStatus" style="color:var(--muted)"></span>
+      </div>
+      <div class="views" style="margin-top:12px">
+        <div class="view">
+          <h3>Card key <small>slot · cycle pattern per tile</small></h3>
+          <div class="canvasbox"><canvas id="cardKey" width="10" height="10"></canvas></div>
+        </div>
+        <div class="view">
+          <h3>Photo of printed card <small id="photoHint">load a photo</small></h3>
+          <div class="canvasbox" style="position:relative"><canvas id="photo" width="10" height="10" style="cursor:crosshair"></canvas></div>
+          <div class="actions">
+            <button id="photoBtn">Load photo…</button><input type="file" id="photoFile" accept="image/*,.heic,.heif" hidden>
+            <button id="photoReset" disabled>Redo corners</button>
+          </div>
+        </div>
+      </div>
+      <div id="calibCompare" style="margin-top:12px"></div>
+      <div class="actions">
+        <button class="primary" id="calibApply" disabled>Use measured colors</button>
+        <button id="calibClear">Clear calibration</button>
+        <button id="calibSave">Save calibration file</button>
+        <button id="calibLoadBtn">Load calibration file…</button><input type="file" id="calibFile" accept="application/json,.json" hidden>
+        <span id="calibStatus" style="color:var(--muted)"></span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+// ---------- color math ----------
+const s2l = v => v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+const l2s = v => v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+function hexToRgb(h){ h = h.replace('#',''); return [0,2,4].map(i => parseInt(h.slice(i,i+2),16)/255); }
+function rgbToHex(c){ return '#' + c.map(v => Math.round(clamp01(v)*255).toString(16).padStart(2,'0')).join(''); }
+const fLab = t => t > 216/24389 ? Math.cbrt(t) : (24389/27*t + 16)/116;
+const fInv = t => t*t*t > 216/24389 ? t*t*t : (116*t - 16)/(24389/27);
+function linToLab(r,g,b){
+  const X = (0.4124564*r + 0.3575761*g + 0.1804375*b)/0.95047;
+  const Y =  0.2126729*r + 0.7151522*g + 0.0721750*b;
+  const Z = (0.0193339*r + 0.1191920*g + 0.9503041*b)/1.08883;
+  const fx = fLab(X), fy = fLab(Y), fz = fLab(Z);
+  return [116*fy - 16, 500*(fx - fy), 200*(fy - fz)];
+}
+function labToLin(L,a,b){
+  const fy = (L + 16)/116, fx = fy + a/500, fz = fy - b/200;
+  const X = fInv(fx)*0.95047, Y = fInv(fy), Z = fInv(fz)*1.08883;
+  return [ 3.2404542*X - 1.5371385*Y - 0.4985314*Z,
+          -0.9692660*X + 1.8760108*Y + 0.0415560*Z,
+           0.0556434*X - 0.2040259*Y + 1.0572252*Z];
+}
+const srgbToLab = c => linToLab(s2l(c[0]), s2l(c[1]), s2l(c[2]));
+const labToSrgb = l => labToLin(...l).map(v => clamp01(l2s(clamp01(v))));
+
+// ---------- state ----------
+const DEFAULT_FILS = [
+  {name:'White',   color:'#f2f1ec'},
+  {name:'Cyan',    color:'#1ea5e6'},
+  {name:'Magenta', color:'#e3207f'},
+  {name:'Yellow',  color:'#f6e11c'},
+];
+const $ = id => document.getElementById(id);
+let img = null, result = null, depthSrc = null; // depthSrc: AI depth map (canvas) for img, brighter = nearer
+
+function buildFilamentUI(){
+  const box = $('filaments'), sel = $('basefil');
+  DEFAULT_FILS.forEach((f,i) => {
+    const row = document.createElement('div'); row.className = 'fil';
+    row.innerHTML = `<b>${i+1}</b><input type="color" id="fc${i}" value="${f.color}"><input type="text" id="fn${i}" value="${f.name}">`;
+    box.appendChild(row);
+    const o = document.createElement('option'); o.value = i; o.textContent = `${i+1} · ${f.name}`; sel.appendChild(o);
+    $('frameFil').appendChild(o.cloneNode(true));
+  });
+  $('frameFil').value = 3;
+}
+// keep the slot dropdowns labelled with the current filament names
+function refreshFilOptions(){
+  for (const id of ['basefil', 'frameFil']) [...$(id).options].forEach((o, k) => o.textContent = `${k+1} · ${$('fn'+k).value || 'Filament ' + (k+1)}`);
+}
+
+function readSettings(){
+  const num = id => parseFloat($(id).value);
+  return {
+    fils: [0,1,2,3].map(i => ({name: $('fn'+i).value || `Filament ${i+1}`, rgb: hexToRgb($('fc'+i).value)})),
+    width: num('width'), lh: num('lh'), L: Math.round(num('L')), colw: num('colw'), thick: num('thick'),
+    baseh: num('baseh'), based: num('based'), basefil: parseInt($('basefil').value),
+    K: Math.round(num('K')), fitTone: $('fitTone').checked, dither: $('dither').checked,
+    bright: num('bright'), contrast: num('contrast'), sat: num('sat'), transl: num('transl'),
+    wall: $('wall').checked, keyholes: $('keyholes').value, frameW: num('frameW') || 0, frameFil: parseInt($('frameFil').value),
+    simplify: Math.round(num('simplify')), specks: Math.round(num('specks')), outline: Math.round(num('outline')), outlineW: Math.max(1, Math.round(num('outlineW'))),
+    relief: $('relief').checked, reliefD: num('reliefD'), lumW: num('lumW'), depthSmooth: Math.round(num('depthSmooth')), lit: $('lit').checked,
+  };
+}
+
+// ---------- mixes ----------
+// Spread filament counts evenly across the cycle (e.g. 2,1,1 -> 1 2 1 3).
+function cycleSequence(counts, L){
+  const used = counts.map(() => 0), seq = [];
+  for (let t = 0; t < L; t++){
+    let best = -1, bestD = -Infinity;
+    for (let i = 0; i < counts.length; i++){
+      if (used[i] >= counts[i]) continue;
+      const d = counts[i]*(t+1)/L - used[i];
+      if (d > bestD + 1e-9){ bestD = d; best = i; }
+    }
+    used[best]++; seq.push(best);
+  }
+  return seq;
+}
+function buildCandidates(fils, L, translucency = 0){
+  const out = [];
+  const lin = fils.map(f => f.rgb.map(s2l));
+  const rec = (i, left, acc) => {
+    if (i === 3){ acc.push(left); emit(acc.slice()); acc.pop(); return; }
+    for (let n = left; n >= 0; n--){ acc.push(n); rec(i+1, left-n, acc); acc.pop(); }
+  };
+  const emit = counts => {
+    // skip mixes reducible to a shorter cycle only if they'd duplicate; keep all, they're the same color anyway
+    // Opaque stripes average light (arithmetic mean); translucent layers filter it (geometric mean).
+    const m = [0,0,0];
+    for (let k = 0; k < 3; k++){
+      let ar = 0, lg = 0;
+      counts.forEach((n,i) => { ar += lin[i][k]*n/L; lg += Math.log(Math.max(1e-4, lin[i][k]))*n/L; });
+      m[k] = (1 - translucency)*ar + translucency*Math.exp(lg);
+    }
+    const key = mixKey(counts, L), meas = calibLookup(key, fils);
+    if (meas){ const lm = hexToRgb(meas).map(s2l); m[0] = lm[0]; m[1] = lm[1]; m[2] = lm[2]; }
+    const pure = counts.filter(n => n > 0).length === 1;
+    out.push({counts, key, measured: !!meas, seq: cycleSequence(counts, L), lin: m, lab: linToLab(...m),
+              srgb: m.map(v => clamp01(l2s(v))), pure, filament: pure ? counts.findIndex(n => n>0) : -1});
+  };
+  rec(0, L, []);
+  return out;
+}
+
+// ---------- image processing ----------
+function sampleImage(s){
+  const cols = Math.max(4, Math.round(s.width / s.colw));
+  const rowH = s.L * s.lh;
+  const heightMm = s.width * img.naturalHeight / img.naturalWidth;
+  const rows = Math.max(4, Math.round(heightMm / rowH));
+  const c = document.createElement('canvas'); c.width = cols; c.height = rows;
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  g.drawImage(img, 0, 0, cols, rows);
+  const d = g.getImageData(0, 0, cols, rows).data;
+  const px = new Float32Array(cols*rows*3);
+  for (let i = 0, j = 0; i < d.length; i += 4, j += 3){
+    let r = d[i]/255, gg = d[i+1]/255, b = d[i+2]/255;
+    const a = d[i+3]/255; r = r*a + (1-a); gg = gg*a + (1-a); b = b*a + (1-a); // composite on white
+    r = (r - 0.5)*s.contrast + 0.5 + s.bright; gg = (gg - 0.5)*s.contrast + 0.5 + s.bright; b = (b - 0.5)*s.contrast + 0.5 + s.bright;
+    const y = 0.299*r + 0.587*gg + 0.114*b;
+    px[j] = clamp01(y + (r - y)*s.sat); px[j+1] = clamp01(y + (gg - y)*s.sat); px[j+2] = clamp01(y + (b - y)*s.sat);
+  }
+  return {cols, rows, rowH, heightMm: rows*rowH, px};
+}
+
+function toLabArray(px){
+  const n = px.length/3, lab = new Float32Array(px.length);
+  for (let i = 0; i < n; i++){
+    const l = linToLab(s2l(px[i*3]), s2l(px[i*3+1]), s2l(px[i*3+2]));
+    lab[i*3] = l[0]; lab[i*3+1] = l[1]; lab[i*3+2] = l[2];
+  }
+  return lab;
+}
+
+function fitTones(lab, cands){
+  const n = lab.length/3, Ls = new Float32Array(n);
+  for (let i = 0; i < n; i++) Ls[i] = lab[i*3];
+  const sorted = Float32Array.from(Ls).sort();
+  const lo = sorted[Math.floor(n*0.01)], hi = sorted[Math.floor(n*0.99)];
+  // Map the image's darkest tone to the darkest *near-neutral* mix, not the darkest saturated one:
+  // otherwise dark grays/browns can only be matched by magenta or cyan and the hues go wrong.
+  let cmax = -Infinity, cminN = Infinity, cmin = Infinity;
+  for (const c of cands){
+    cmax = Math.max(cmax, c.lab[0]); cmin = Math.min(cmin, c.lab[0]);
+    if (Math.hypot(c.lab[1], c.lab[2]) < 20) cminN = Math.min(cminN, c.lab[0]);
+  }
+  const floor = isFinite(cminN) ? 0.75*cminN + 0.25*cmin : cmin;
+  const span = Math.max(1, hi - lo);
+  for (let i = 0; i < n; i++){
+    const t = Math.min(1, Math.max(0, (Ls[i] - lo)/span));
+    lab[i*3] = floor + t*(cmax - floor);
+    lab[i*3+1] *= 0.9; lab[i*3+2] *= 0.9;
+  }
+}
+
+// CIE94-style difference with hue weighted up and chroma weighted down: when a color can't be
+// matched exactly, losing saturation looks far more natural than shifting hue (gray rock -> pink).
+const HUE_W = 2.5, CHROMA_W = 0.6;
+const dist2 = (a, i, c) => {
+  const dL = a[i]-c[0], da = a[i+1]-c[1], db = a[i+2]-c[2];
+  const C1 = Math.hypot(a[i+1], a[i+2]), dC = C1 - Math.hypot(c[1], c[2]);
+  const dH2 = Math.max(0, da*da + db*db - dC*dC);
+  const sC = 1 + 0.045*C1, sH = 1 + 0.015*C1;
+  return dL*dL + CHROMA_W*(dC/sC)*(dC/sC) + HUE_W*dH2/(sH*sH);
+};
+
+// Greedy subset selection: pick K candidates that minimise total distance to sampled pixels, then swap-refine.
+function choosePalette(lab, cands, K){
+  const n = lab.length/3, step = Math.max(1, Math.floor(n/5000));
+  const idx = []; for (let i = 0; i < n; i += step) idx.push(i*3);
+  const m = idx.length, C = cands.length;
+  const D = new Float32Array(m*C);
+  for (let p = 0; p < m; p++) for (let c = 0; c < C; c++) D[p*C+c] = dist2(lab, idx[p], cands[c].lab);
+  K = Math.min(K, C);
+  let chosen = [], best = new Float32Array(m).fill(Infinity);
+  const cost = set => { let s = 0; for (let p = 0; p < m; p++){ let b = Infinity; for (const c of set){ const v = D[p*C+c]; if (v < b) b = v; } s += b; } return s; };
+  for (let k = 0; k < K; k++){
+    let bc = -1, bs = Infinity;
+    for (let c = 0; c < C; c++){
+      if (chosen.includes(c)) continue;
+      let s = 0; for (let p = 0; p < m; p++){ const v = D[p*C+c]; s += v < best[p] ? v : best[p]; }
+      if (s < bs){ bs = s; bc = c; }
+    }
+    chosen.push(bc); for (let p = 0; p < m; p++){ const v = D[p*C+bc]; if (v < best[p]) best[p] = v; }
+  }
+  // one swap pass
+  let cur = cost(chosen);
+  for (let k = 0; k < chosen.length; k++){
+    for (let c = 0; c < C; c++){
+      if (chosen.includes(c)) continue;
+      const trial = chosen.slice(); trial[k] = c;
+      const t = cost(trial); if (t < cur - 1e-6){ cur = t; chosen = trial; }
+    }
+  }
+  return chosen.map(c => cands[c]);
+}
+
+function mapPixels(lab, cols, rows, pal, dither){
+  const out = new Uint16Array(cols*rows);
+  const work = Float32Array.from(lab);
+  const nearest = i => { let b = 0, bd = Infinity; for (let k = 0; k < pal.length; k++){ const d = dist2(work, i, pal[k].lab); if (d < bd){ bd = d; b = k; } } return b; };
+  for (let y = 0; y < rows; y++){
+    const ltr = (y % 2 === 0);
+    for (let xi = 0; xi < cols; xi++){
+      const x = ltr ? xi : cols - 1 - xi, p = y*cols + x, i = p*3;
+      const k = nearest(i); out[p] = k;
+      if (!dither) continue;
+      // Damp and cap the diffused error: colors outside the printable range would otherwise
+      // pile up error and spray noisy, wrong-hued speckles across smooth areas.
+      const cap = v => Math.max(-18, Math.min(18, v * 0.8));
+      const e = [cap(work[i]-pal[k].lab[0]), cap(work[i+1]-pal[k].lab[1]), cap(work[i+2]-pal[k].lab[2])];
+      const dir = ltr ? 1 : -1;
+      const push = (dx, dy, w) => { const nx = x + dx*dir, ny = y + dy; if (nx < 0 || nx >= cols || ny >= rows) return; const j = (ny*cols + nx)*3; work[j] += e[0]*w; work[j+1] += e[1]*w; work[j+2] += e[2]*w; };
+      push(1,0,7/16); push(-1,1,3/16); push(0,1,5/16); push(1,1,1/16);
+    }
+  }
+  return out;
+}
+
+// ---------- slots ----------
+function assignSlots(pal, map, s){
+  const area = new Array(pal.length).fill(0); for (const k of map) area[k]++;
+  const order = pal.map((p,k) => ({p, k, area: area[k]})).filter(e => e.area > 0);
+  let next = mixStart();
+  const mixes = order.filter(e => !e.p.pure).sort((a,b) => b.area - a.area);
+  for (const e of mixes) e.slot = next++;
+  for (const e of order) if (e.p.pure) e.slot = e.p.filament + 1;
+  order.sort((a,b) => a.slot - b.slot);
+  return order;
+}
+const patternString = seq => seq.map(i => i+1).join('');
+// With mix definitions embedded, Orca numbers our mixes 5, 6, … in the order we list them.
+const mixStart = () => document.getElementById('preassign').checked ? 5 : Math.max(5, Math.round(parseFloat(document.getElementById('mixStart').value) || 5));
+
+// ---------- rendering ----------
+function drawFar(r, s){
+  const cv = $('far'); cv.width = r.cols; cv.height = r.rows;
+  const g = cv.getContext('2d'), id = g.createImageData(r.cols, r.rows);
+  const cols = r.pal.map(p => p.srgb.map(v => Math.round(v*255)));
+  const shade = (s.lit && r.depth) ? reliefShading(r) : null;
+  for (let i = 0; i < r.cols*r.rows; i++){
+    const c = cols[r.map[i]];
+    if (shade){ const k = shade[i], p = r.pal[r.map[i]].lin; for (let j = 0; j < 3; j++) id.data[i*4+j] = Math.round(255*l2s(clamp01(p[j]*k))); }
+    else { id.data[i*4] = c[0]; id.data[i*4+1] = c[1]; id.data[i*4+2] = c[2]; }
+    id.data[i*4+3] = 255;
+  }
+  g.putImageData(id, 0, 0);
+  physicalAspect(cv, r);
+}
+// Light from the upper left, a little in front: brightness factor per cell (1 = flat surface).
+// Includes a cheap cast shadow: marching toward the light, anything nearer that rises above the ray darkens the cell.
+function reliefShading(r){
+  const s = r.settings, {cols, rows} = r, D = s.reliefD, out = new Float32Array(cols*rows);
+  const h = (x, y) => D * r.depth[Math.min(rows-1, Math.max(0, y))*cols + Math.min(cols-1, Math.max(0, x))];
+  const L = [-0.45, 0.6, 0.66], ln = Math.hypot(...L); L[0] /= ln; L[1] /= ln; L[2] /= ln;
+  const flat = 0.3 + 0.7*L[2];
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++){
+    const dx = (h(x+1, y) - h(x-1, y)) / (2*s.colw), dz = (h(x, y-1) - h(x, y+1)) / (2*r.rowH);
+    const nx = -dx, nz = -dz, nl = Math.hypot(nx, nz, 1);
+    let k = (0.3 + 0.7*Math.max(0, (nx*L[0] + nz*L[1] + L[2]) / nl)) / flat;
+    // shadow: step toward the light (left and up) in mm
+    const h0 = h(x, y);
+    for (let t = 0.5; t <= 8; t += 0.5){
+      const px = x + Math.round(L[0]*t/s.colw), py = y - Math.round(L[1]*t/r.rowH);
+      if (px < 0 || py < 0) break;
+      if (h(px, py) > h0 + L[2]*t){ k *= 0.6; break; }
+    }
+    out[y*cols+x] = k;
+  }
+  return out;
+}
+function physicalAspect(cv, r){
+  cv.style.width = '100%';
+  cv.style.aspectRatio = `${r.cols*r.colw} / ${r.rows*r.rowH}`;
+}
+function drawClose(r, s, cx, cy){
+  const cv = $('close');
+  const cols = Math.min(40, r.cols);
+  const rows = Math.max(2, Math.min(r.rows, Math.round(cols * s.colw * 0.66 / r.rowH)));
+  const x0 = Math.max(0, Math.min(r.cols - cols, Math.round(cx - cols/2)));
+  const y0 = Math.max(0, Math.min(r.rows - rows, Math.round(cy - rows/2)));
+  const pxPerMm = Math.max(12, 3 / s.lh), cw = s.colw*pxPerMm, lhPx = s.lh*pxPerMm;
+  cv.width = Math.round(cols*cw); cv.height = Math.round(rows*s.L*lhPx);
+  const g = cv.getContext('2d');
+  const filHex = s.fils.map(f => rgbToHex(f.rgb));
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++){
+    const p = r.pal[r.map[(y0+y)*r.cols + x0 + x]];
+    // layers are listed bottom-to-top; within a row the first layer printed is at the bottom
+    for (let t = 0; t < s.L; t++){
+      g.fillStyle = filHex[p.seq[t]];
+      g.fillRect(Math.round(x*cw), Math.round((y*s.L + (s.L-1-t))*lhPx), Math.ceil(cw), Math.ceil(lhPx));
+    }
+  }
+  r.closeAt = {cx, cy};
+}
+function drawOrig(r){
+  const cv = $('orig'); cv.width = r.cols; cv.height = r.rows;
+  const g = cv.getContext('2d'), id = g.createImageData(r.cols, r.rows);
+  for (let i = 0; i < r.cols*r.rows; i++){
+    const c = labToSrgb([r.labOrig[i*3], r.labOrig[i*3+1], r.labOrig[i*3+2]]);
+    id.data[i*4] = c[0]*255; id.data[i*4+1] = c[1]*255; id.data[i*4+2] = c[2]*255; id.data[i*4+3] = 255;
+  }
+  g.putImageData(id, 0, 0);
+  physicalAspect(cv, r);
+}
+function drawGamut(cands, pal){
+  const sorted = cands.slice().sort((a,b) => a.lab[0] - b.lab[0] || Math.atan2(a.lab[2],a.lab[1]) - Math.atan2(b.lab[2],b.lab[1]));
+  const per = Math.ceil(Math.sqrt(sorted.length)), sz = 28;
+  const cv = $('gamut'); cv.width = per*sz; cv.height = Math.ceil(sorted.length/per)*sz;
+  const g = cv.getContext('2d'); g.clearRect(0,0,cv.width,cv.height);
+  sorted.forEach((c,i) => {
+    const x = (i%per)*sz, y = Math.floor(i/per)*sz;
+    g.fillStyle = rgbToHex(c.srgb); g.fillRect(x+1, y+1, sz-2, sz-2);
+    if (pal.includes(c)){ g.strokeStyle = c.lab[0] > 55 ? '#000' : '#fff'; g.lineWidth = 2; g.strokeRect(x+4, y+4, sz-8, sz-8); }
+  });
+}
+
+function renderRecipe(r, s){
+  const tb = $('recipe').querySelector('tbody'); tb.innerHTML = '';
+  const total = r.cols*r.rows;
+  for (const e of r.slots){
+    const p = e.p, tr = document.createElement('tr');
+    const mix = p.counts.map((n,i) => n ? `${s.fils[i].name} ${Math.round(100*n/s.L)}%` : '').filter(Boolean).join(' · ');
+    const stripes = p.seq.slice().reverse().map(i => `<i style="background:${rgbToHex(s.fils[i].rgb)}"></i>`).join('');
+    tr.innerHTML = `<td><b>${e.slot}</b>${p.pure ? ' <small>(filament)</small>' : ''}</td>
+      <td><span class="sw" style="background:${rgbToHex(p.srgb)}"></span> <small>${rgbToHex(p.srgb)}</small></td>
+      <td><span class="stripe">${stripes}</span></td>
+      <td>${p.pure ? '—' : `<code>${patternString(p.seq)}</code>`}</td>
+      <td><small>${mix}</small></td>
+      <td>${(100*e.area/total).toFixed(1)}%</td>`;
+    tb.appendChild(tr);
+  }
+  $('lhNote').textContent = s.lh;
+}
+
+function plaqueSize(r, s){
+  const relief = (s.relief && r.depth) ? s.reliefD : 0;
+  const W = r.cols*s.colw, H = r.rows*r.rowH + s.baseh, T = s.thick + relief;
+  return s.wall ? {W, H, T, footX: W, footY: T} : {W, H, T, footX: W + 8, footY: Math.max(s.based, T)}; // stand overhangs 4 mm each side
+}
+function renderStats(r, s){
+  // tool loads: distinct filaments needed in each layer (each one is roughly one tool change)
+  let swaps = 0;
+  for (let y = 0; y < r.rows; y++){
+    const present = new Set(); for (let x = 0; x < r.cols; x++) present.add(r.map[y*r.cols+x]);
+    for (let t = 0; t < s.L; t++){ const f = new Set(); for (const k of present) f.add(r.pal[k].seq[t]); if (f.size > 1) swaps += f.size; }
+  }
+  r.swaps = swaps;
+  const layers = r.rows*s.L, baseLayers = Math.round(s.baseh/s.lh);
+  const cells = r.cols*r.rows, sz = plaqueSize(r, s);
+  const swapS = parseFloat($('swapS').value) || 30, hours = swaps*swapS/3600;
+  const bv = ['bvX','bvY','bvZ'].map(id => parseFloat($(id).value) || 270);
+  const over = [];
+  if (sz.footX > bv[0]) over.push(`width ${sz.footX.toFixed(0)} > ${bv[0]} mm`);
+  if (sz.H > bv[2]) over.push(`height ${sz.H.toFixed(0)} > ${bv[2]} mm`);
+  if (sz.footY > bv[1] - 60) over.push(`base depth leaves no room for the prime tower`);
+  const tall = !s.wall && sz.H > 150 && sz.footY < sz.H*0.18;
+  $('stats').innerHTML = [
+    ['Grid', `${r.cols} × ${r.rows}`], ['Size', `${sz.W.toFixed(0)} × ${sz.H.toFixed(0)} × ${sz.T.toFixed(1)} mm`],
+    ['Layers', `${layers + baseLayers}`], ['Mixes', `${r.slots.filter(e => !e.p.pure).length}`],
+    ['Tool changes', `~${swaps.toLocaleString()}`], ['Swap time', `~${hours < 10 ? hours.toFixed(1) : Math.round(hours)} h`],
+  ].map(([k,v]) => `<span>${k} <b>${v}</b></span>`).join('') +
+  (s.wall ? (s.thick >= 3 ? ` <span>Keyholes <b>${(s.keyholes === 'auto' ? (sz.W < 150 ? 1 : 2) : +s.keyholes) === 1 ? '1, centered' : `2, ${(sz.W*0.5).toFixed(0)} mm apart`}</b>, ~${Math.min(15, (sz.H - s.baseh)*0.15).toFixed(0)} mm below the top, on the back (not shown in these front views)</span>` : ` <span class="warn">Back thickness under 3 mm: no room for keyholes.</span>`) : '') +
+  (over.length ? ` <span class="warn">Doesn't fit: ${over.join(', ')}. Try Fit to U1.</span>` : '') +
+  (tall ? ` <span class="warn">Tall and thin: set Base depth to ~${Math.ceil(sz.H*0.2/2)*2} mm so it doesn't wobble.</span>` : '') +
+  (cells > 250000 ? ` <span class="warn">Large grid: export and slicing will be slow. Try a wider column width.</span>` : '');
+}
+
+// Largest plaque that fits the build volume for this photo's shape, with room for the prime tower
+// and a base wide enough to stay steady when tall.
+function fitToU1(){
+  if (!img){ $('fitNote').textContent = 'Load an image first.'; return; }
+  const s = readSettings(), bv = ['bvX','bvY','bvZ'].map(id => parseFloat($(id).value) || 270);
+  const aspect = img.naturalHeight / img.naturalWidth;
+  const margin = 5, maxW = bv[0] - 8 - 2*margin, maxImgH = bv[2] - s.baseh - 2;
+  const width = Math.floor(Math.min(maxW, maxImgH / aspect));
+  const imgH = width * aspect, totalH = imgH + s.baseh;
+  const baseDepth = Math.min(bv[1] - 70, Math.max(24, Math.ceil(totalH * 0.2 / 2) * 2));
+  $('width').value = width; $('based').value = baseDepth;
+  if (totalH > 150 && s.thick < 4) $('thick').value = 4;
+  run();
+  const swapS = parseFloat($('swapS').value) || 30;
+  const limit = width === Math.floor(maxW) ? 'width' : 'height';
+  $('fitNote').innerHTML = `Set ${width} × ${totalH.toFixed(0)} mm (limited by ${limit}), base depth ${baseDepth} mm, leaving ~${bv[1] - baseDepth} mm of bed depth for the prime tower.` +
+    (result && result.swaps ? ` About ${(result.swaps*swapS/3600).toFixed(0)} h of tool changes: every 10% less height saves ~10%.` : '');
+}
+
+// ---------- pipeline ----------
+let pending = 0;
+function schedule(){ clearTimeout(pending); pending = setTimeout(run, 120); }
+// Relief height per cell, 0 (deepest) .. 1 (nearest), or null when relief is off.
+// Mixes the AI depth map (if estimated) with brightness, so darks also sit in real shadow.
+function depthGrid(s, smp, labOrig, frameMask){
+  if (!s.relief) return null;
+  const {cols, rows} = smp, n = cols*rows;
+  const lum = new Float32Array(n); for (let i = 0; i < n; i++) lum[i] = labOrig[i*3] / 100;
+  let ai = null;
+  if (depthSrc){
+    const c = document.createElement('canvas'); c.width = cols; c.height = rows;
+    const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(depthSrc, 0, 0, cols, rows);
+    const d = g.getImageData(0, 0, cols, rows).data; ai = new Float32Array(n);
+    for (let i = 0; i < n; i++) ai[i] = d[i*4] / 255;
+  }
+  const norm = a => { const srt = Float32Array.from(a).sort(), lo = srt[Math.floor(n*0.02)], hi = srt[Math.floor(n*0.98)], sp = Math.max(1e-3, hi - lo);
+    for (let i = 0; i < n; i++) a[i] = Math.min(1, Math.max(0, (a[i] - lo) / sp)); return a; };
+  norm(lum); if (ai) norm(ai);
+  const w = ai ? s.lumW : 1;
+  let h = new Float32Array(n); for (let i = 0; i < n; i++) h[i] = ai ? (1 - w)*ai[i] + w*lum[i] : lum[i];
+  // separable box blur, repeated for a smoother falloff (also limits ledges between rows)
+  for (let pass = 0; pass < s.depthSmooth; pass++){
+    const t = new Float32Array(n);
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++){ let a = 0, k = 0; for (let dx = -1; dx <= 1; dx++){ const xx = x+dx; if (xx >= 0 && xx < cols){ a += h[y*cols+xx]; k++; } } t[y*cols+x] = a/k; }
+    // rows are ~2.5x shorter than columns are wide, so blur further vertically
+    const rr = Math.max(1, Math.round(s.colw / smp.rowH));
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++){ let a = 0, k = 0; for (let dy = -rr; dy <= rr; dy++){ const yy = y+dy; if (yy >= 0 && yy < rows){ a += t[yy*cols+x]; k++; } } h[y*cols+x] = a/k; }
+  }
+  norm(h);
+  if (frameMask) for (let i = 0; i < n; i++) if (frameMask[i]) h[i] = 1;
+  // Printed upright, a cell that sticks out further than the cell below it is an overhang.
+  // Working bottom-up, cap how far each row may protrude past the row beneath (45°).
+  const step = smp.rowH / Math.max(0.1, s.reliefD);
+  for (let y = rows - 2; y >= 0; y--) for (let x = 0; x < cols; x++){
+    const i = y*cols + x, below = h[i + cols]; if (h[i] > below + step) h[i] = below + step;
+  }
+  return h;
+}
+
+// ---------- stylize ----------
+// Edge-preserving smoothing (iterated bilateral filter in Lab). Rows are much shorter than columns
+// are wide, so the vertical radius is scaled by `aspect` to smooth the same physical distance.
+function simplifyLab(lab, cols, rows, level, aspect){
+  const rx = 1 + Math.floor(level / 2), ry = Math.max(1, Math.round(rx * aspect)), sigR = 6 + 3*level;
+  const inv = 1 / (2*sigR*sigR);
+  for (let it = 0; it < Math.min(3, level); it++){
+    const src = Float32Array.from(lab);
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++){
+      const i = (y*cols + x)*3, L0 = src[i], a0 = src[i+1], b0 = src[i+2];
+      let w = 0, sL = 0, sa = 0, sb = 0;
+      for (let dy = -ry; dy <= ry; dy++){ const yy = y + dy; if (yy < 0 || yy >= rows) continue;
+        for (let dx = -rx; dx <= rx; dx++){ const xx = x + dx; if (xx < 0 || xx >= cols) continue;
+          const j = (yy*cols + xx)*3, dL = src[j]-L0, da = src[j+1]-a0, db = src[j+2]-b0;
+          const k = Math.exp(-(dL*dL + da*da + db*db) * inv);
+          w += k; sL += k*src[j]; sa += k*src[j+1]; sb += k*src[j+2];
+        } }
+      lab[i] = sL/w; lab[i+1] = sa/w; lab[i+2] = sb/w;
+    }
+  }
+}
+// Mode filter: a cell whose color is rare in its neighbourhood takes the most common neighbour color.
+// Removes 1-2 cell islands, which cost the most print time for the least visible detail.
+function despeckle(map, cols, rows, passes, ry){
+  for (let p = 0; p < passes; p++){
+    const src = Uint16Array.from(map), cnt = new Map();
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++){
+      cnt.clear(); let n = 0;
+      for (let dy = -ry; dy <= ry; dy++){ const yy = y + dy; if (yy < 0 || yy >= rows) continue;
+        for (let dx = -1; dx <= 1; dx++){ const xx = x + dx; if (xx < 0 || xx >= cols) continue;
+          const k = src[yy*cols + xx]; cnt.set(k, (cnt.get(k) || 0) + 1); n++; } }
+      const own = cnt.get(src[y*cols + x]);
+      if (own * 4 >= n) continue; // keep if it holds at least a quarter of the window
+      let best = -1, bc = 0; for (const [k, c] of cnt) if (c > bc){ bc = c; best = k; }
+      map[y*cols + x] = best;
+    }
+  }
+}
+// Black lines where the (simplified) image changes sharply, drawn in the darkest palette color.
+function drawOutlines(map, lab, cols, rows, pal, s, ry){
+  let dark = 0; pal.forEach((p, k) => { if (p.lab[0] < pal[dark].lab[0]) dark = k; });
+  const thr = 44 - 3.6*s.outline; // strength 1 = only the strongest edges, 10 = most edges
+  const de = (i, j) => Math.hypot(lab[i*3]-lab[j*3], lab[i*3+1]-lab[j*3+1], lab[i*3+2]-lab[j*3+2]);
+  const edge = new Uint8Array(cols*rows);
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++){
+    const i = y*cols + x;
+    if (x+1 < cols && de(i, i+1) > thr) edge[i] = 1;
+    if (y+ry < rows && de(i, i + ry*cols) > thr) edge[i] = 1;
+  }
+  const wx = s.outlineW, wy = Math.max(1, Math.round(wx * ry));
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++){
+    if (!edge[y*cols + x]) continue;
+    for (let dy = 0; dy < wy; dy++) for (let dx = 0; dx < wx; dx++){ const xx = x+dx, yy = y+dy; if (xx < cols && yy < rows) map[yy*cols + xx] = dark; }
+  }
+}
+
+// Pure computation (no drawing) so the filament-set finder can try many combinations.
+function compute(s, smp){
+  smp = smp || sampleImage(s);
+  const cands = buildCandidates(s.fils, s.L, s.transl);
+  const lab = toLabArray(smp.px);
+  if (s.simplify) simplifyLab(lab, smp.cols, smp.rows, s.simplify, s.colw / smp.rowH);
+  const labOrig = Float32Array.from(lab);
+  if (s.fitTone) fitTones(lab, cands);
+  let pal = choosePalette(lab, cands, s.K);
+  if (s.outline){ // outlines need the darkest printable color in the palette
+    const dark = cands.reduce((a, c) => c.lab[0] < a.lab[0] ? c : a);
+    if (!pal.includes(dark)) pal = [...pal, dark];
+  }
+  const map = mapPixels(lab, smp.cols, smp.rows, pal, s.dither);
+  if (s.specks) despeckle(map, smp.cols, smp.rows, s.specks, Math.max(1, Math.round(s.colw / smp.rowH)));
+  if (s.outline) drawOutlines(map, labOrig, smp.cols, smp.rows, pal, s, Math.max(1, Math.round(s.colw / smp.rowH)));
+  // Frame: a solid border in one filament, drawn over the image's outer edge. With relief on it sits
+  // at the front (nearest) so it protects the relief; the overhang cap bevels the top bar's underside.
+  let frameMask = null;
+  if (s.frameW > 0){
+    const fx = Math.max(1, Math.round(s.frameW / s.colw)), fy = Math.max(1, Math.round(s.frameW / smp.rowH));
+    const fc = cands.find(c => c.pure && c.filament === s.frameFil);
+    if (!pal.includes(fc)) pal = [...pal, fc];
+    const fi = pal.indexOf(fc), {cols, rows} = smp;
+    frameMask = new Uint8Array(cols*rows);
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++)
+      if (x < fx || x >= cols - fx || y < fy || y >= rows - fy){ map[y*cols + x] = fi; frameMask[y*cols + x] = 1; }
+  }
+  const r = {...smp, lab, labOrig, pal, map, colw: s.colw, settings: s};
+  r.depth = depthGrid(s, smp, labOrig, frameMask);
+  r.slots = assignSlots(pal, map, s);
+  return {r, cands};
+}
+// How far the print (as seen from a distance, so lightly blurred) is from the original, in mean ΔE.
+function scoreResult(r){
+  const w = r.cols, h = r.rows, res = new Float32Array(w*h*3);
+  for (let i = 0; i < w*h; i++) res.set(r.pal[r.map[i]].lab, i*3);
+  const blur = lab => { const o = new Float32Array(lab.length);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){ let a0=0,a1=0,a2=0,n=0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++){ const xx = x+dx, yy = y+dy; if (xx<0||yy<0||xx>=w||yy>=h) continue; const i = (yy*w+xx)*3; a0+=lab[i]; a1+=lab[i+1]; a2+=lab[i+2]; n++; }
+      const i = (y*w+x)*3; o[i]=a0/n; o[i+1]=a1/n; o[i+2]=a2/n; }
+    return o; };
+  const A = blur(r.labOrig), B = blur(res); let sum = 0;
+  for (let i = 0; i < w*h; i++) sum += Math.hypot(A[i*3]-B[i*3], A[i*3+1]-B[i*3+1], A[i*3+2]-B[i*3+2]);
+  return sum / (w*h);
+}
+function run(){
+  if (!img) return;
+  const s = readSettings();
+  if (!(s.width > 0 && s.lh > 0 && s.L >= 2 && s.colw > 0)) return;
+  $('status').textContent = 'Working…';
+  const t0 = performance.now();
+  const {r, cands} = compute(s);
+  result = r;
+  drawFar(result, s); drawOrig(result); drawGamut(cands, result.pal);
+  drawClose(result, s, result.cols/2, result.rows/2);
+  renderRecipe(result, s); renderStats(result, s);
+  $('export').disabled = false;
+  $('status').textContent = `Ready (${Math.round(performance.now() - t0)} ms).`;
+}
+
+// ---------- mesh + 3MF ----------
+// Mesh: each cell is a column of material from its front depth f (voxel index, 0 = frontmost)
+// back to NY. Faces run along a shared lattice; every face edge that runs in depth (Y) is split at
+// all depth breakpoints of its lattice line, so neighbouring faces meet without T-junctions and
+// each color part is watertight even where the relief steps.
+function buildParts(r){
+  const s = r.settings, W = r.cols*s.colw, DY = 0.05;
+  const relief = r.depth ? s.reliefD : 0;
+  const NY = Math.max(1, Math.round((relief + s.thick)/DY)), T = NY*DY;
+  const cols = r.cols, rows = r.rows, n = cols*rows;
+  const F = new Int32Array(n);
+  if (r.depth) for (let i = 0; i < n; i++) F[i] = Math.round(relief*(1 - r.depth[i])/DY);
+  const cellIdx = (x, rb) => (x < 0 || rb < 0 || x >= cols || rb >= rows) ? -1 : (rows-1-rb)*cols + x;
+  const bpCache = new Array((cols+1)*(rows+1));
+  const bp = (ix, iz) => {
+    const key = iz*(cols+1) + ix; let v = bpCache[key]; if (v) return v;
+    const set = new Set([NY]);
+    for (const [x, rb] of [[ix-1,iz-1],[ix,iz-1],[ix-1,iz],[ix,iz]]){ const c = cellIdx(x, rb); if (c >= 0) set.add(F[c]); }
+    v = [...set].sort((a, b) => a - b); bpCache[key] = v; return v;
+  };
+  const slotOf = new Map(r.slots.map(e => [r.pal.indexOf(e.p), e]));
+  const parts = [];
+  const xAt = c => c*s.colw, zAt = rb => s.baseh + rb*r.rowH;
+  for (const [k, e] of slotOf){
+    const verts = [], tris = [], vmap = new Map();
+    // Lattice lines where two cells of this part touch only diagonally would be shared by four
+    // faces (non-manifold). There, each cell gets its own copy of the line's vertices.
+    const lab = (x, rb) => { const c = cellIdx(x, rb); return c < 0 ? -1 : r.map[c]; };
+    const diagCache = new Int8Array((cols+1)*(rows+1)).fill(-1);
+    const isDiag = (ix, iz) => {
+      const key = iz*(cols+1) + ix; if (diagCache[key] >= 0) return diagCache[key] === 1;
+      const a = lab(ix-1, iz-1) === k, b = lab(ix, iz-1) === k, c = lab(ix-1, iz) === k, d = lab(ix, iz) === k;
+      const v = (a && d && !b && !c) || (b && c && !a && !d); diagCache[key] = v ? 1 : 0; return v;
+    };
+    let cx = 0; // x of the cell whose faces are being emitted
+    const V = (ix, iz, iy) => {
+      const key = ((iz*(cols+1) + ix)*(NY+1) + iy)*2 + (isDiag(ix, iz) && cx === ix ? 1 : 0);
+      let v = vmap.get(key); if (v !== undefined) return v;
+      v = verts.length/3; verts.push(xAt(ix), iy*DY, zAt(iz)); vmap.set(key, v); return v;
+    };
+    // emit a triangle, flipping it if its normal disagrees with the face's outward normal
+    const tri = (a, b, c, nx, ny, nz) => {
+      const ax = verts[a*3], ay = verts[a*3+1], az = verts[a*3+2];
+      const ux = verts[b*3]-ax, uy = verts[b*3+1]-ay, uz = verts[b*3+2]-az, vx = verts[c*3]-ax, vy = verts[c*3+1]-ay, vz = verts[c*3+2]-az;
+      const d = (uy*vz - uz*vy)*nx + (uz*vx - ux*vz)*ny + (ux*vy - uy*vx)*nz;
+      if (d >= 0) tris.push(a, b, c); else tris.push(a, c, b);
+    };
+    const quadY = (iy, x0, z0, x1, z1, ny) => { const a = V(x0,z0,iy), b = V(x1,z0,iy), c = V(x1,z1,iy), d = V(x0,z1,iy); tri(a,b,c,0,ny,0); tri(a,c,d,0,ny,0); };
+    // a face spanning depth [ya, yb] between lattice lines L1 and L2, zipped along both lines' breakpoints
+    const ladder = (ix1, iz1, ix2, iz2, ya, yb, nx, nz) => {
+      if (yb <= ya) return;
+      const A = bp(ix1, iz1).filter(y => y >= ya && y <= yb), B = bp(ix2, iz2).filter(y => y >= ya && y <= yb);
+      let i = 0, j = 0;
+      while (i < A.length-1 || j < B.length-1){
+        if (i < A.length-1 && (j === B.length-1 || A[i+1] <= B[j+1])){ tri(V(ix1,iz1,A[i]), V(ix2,iz2,B[j]), V(ix1,iz1,A[i+1]), nx, 0, nz); i++; }
+        else { tri(V(ix1,iz1,A[i]), V(ix2,iz2,B[j]), V(ix2,iz2,B[j+1]), nx, 0, nz); j++; }
+      }
+    };
+    // exposed depth range of this cell's side against a neighbour cell
+    const sideEnd = (f, nb) => (nb < 0 || r.map[nb] !== k) ? NY : Math.max(f, F[nb]);
+    for (let y = 0; y < rows; y++){
+      const rb = rows - 1 - y;
+      for (let x = 0; x < cols; x++){
+        const ci = y*cols + x; if (r.map[ci] !== k) continue;
+        const f = F[ci], x0 = x, x1 = x+1, z0 = rb, z1 = rb+1; cx = x;
+        quadY(f, x0, z0, x1, z1, -1);                                        // front
+        quadY(NY, x0, z0, x1, z1, 1);                                        // back
+        ladder(x0, z0, x0, z1, f, sideEnd(f, cellIdx(x-1, rb)), -1, 0);      // left
+        ladder(x1, z0, x1, z1, f, sideEnd(f, cellIdx(x+1, rb)), 1, 0);       // right
+        ladder(x0, z0, x1, z0, f, sideEnd(f, cellIdx(x, rb-1)), 0, -1);      // bottom
+        ladder(x0, z1, x1, z1, f, sideEnd(f, cellIdx(x, rb+1)), 0, 1);       // top
+      }
+    }
+    const name = e.p.pure ? `Slot ${e.slot} ${s.fils[e.p.filament].name}` : `Slot ${e.slot} mix ${patternString(e.p.seq)}`;
+    const preassign = $('preassign').checked;
+    parts.push({name, extruder: (e.p.pure || preassign) ? e.slot : 1, seq: e.p.pure ? null : e.p.seq, verts, tris});
+  }
+  const box = (x0, x1, y0, y1, z0, z1) => ({
+    verts: [[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]].flat(),
+    tris: [0,2,1, 0,3,2, 4,5,6, 4,6,7, 0,1,5, 0,5,4, 1,2,6, 1,6,5, 2,3,7, 2,7,6, 3,0,4, 3,4,7]});
+  if (s.baseh > 0){
+    // standing: a stand that overhangs and reaches back; wall mount: a flush bottom border
+    const m = s.wall ? 0 : 4, D = s.wall ? T : Math.max(s.based, T), y0 = (T - D)/2;
+    parts.push({name: s.wall ? `Bottom edge ${s.fils[s.basefil].name}` : `Base ${s.fils[s.basefil].name}`, extruder: s.basefil + 1, ...box(-m, W+m, y0, y0 + D, 0, s.baseh)});
+  }
+  if (s.wall && s.thick >= 3){
+    // Keyhole slots in the back, as negative parts Orca subtracts at slice time. Seen from behind:
+    // a 9 mm entry for the screw head, with a 4.5 mm slot above it and a 9 mm channel behind the
+    // slot's lip, so the plaque drops onto two screws and hangs flush.
+    const top = s.baseh + rows*r.rowH, headD = Math.min(5, s.thick - 1), lipD = headD / 2;
+    const slotTop = top - Math.min(15, (top - s.baseh) * 0.15), slotBot = slotTop - 10;
+    const n = s.keyholes === 'auto' ? (W < 150 ? 1 : 2) : parseInt(s.keyholes);
+    const xs = n === 1 ? [W/2] : [W*0.25, W*0.75];
+    xs.forEach((cx, i) => {
+      const n = xs.length > 1 ? ` ${i+1}` : '';
+      parts.push({name: `Keyhole${n} slot`, subtype: 'negative_part', extruder: 1, ...box(cx-2.25, cx+2.25, T-lipD, T+0.5, slotBot, slotTop)});
+      parts.push({name: `Keyhole${n} head channel`, subtype: 'negative_part', extruder: 1, ...box(cx-4.5, cx+4.5, T-headD, T-lipD+0.01, slotBot, slotTop)});
+      parts.push({name: `Keyhole${n} entry`, subtype: 'negative_part', extruder: 1, ...box(cx-4.5, cx+4.5, T-headD, T+0.5, slotBot-4.5, slotBot+4.5)});
+    });
+  }
+  parts.filColours = s.fils.map(f => rgbToHex(f.rgb).toUpperCase());
+  parts.embedMixes = $('preassign').checked;
+  return parts;
+}
+
+function build3MF(parts){
+  const files = {};
+  const meshXml = (p) => {
+    const out = [];
+    out.push('<mesh><vertices>');
+    for (let i = 0; i < p.verts.length; i += 3) out.push(`<vertex x="${+p.verts[i].toFixed(4)}" y="${+p.verts[i+1].toFixed(4)}" z="${+p.verts[i+2].toFixed(4)}"/>`);
+    out.push('</vertices><triangles>');
+    for (let i = 0; i < p.tris.length; i += 3) out.push(`<triangle v1="${p.tris[i]}" v2="${p.tris[i+1]}" v3="${p.tris[i+2]}"/>`);
+    out.push('</triangles></mesh>');
+    return out.join('');
+  };
+  const esc = t => t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const wrapperId = parts.length + 1;
+  const model = ['<?xml version="1.0" encoding="UTF-8"?>',
+    '<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">',
+    '<metadata name="Title">Upright Mix Forge plaque</metadata><resources>'];
+  parts.forEach((p, i) => model.push(`<object id="${i+1}" name="${esc(p.name)}" type="model">${meshXml(p)}</object>`));
+  model.push(`<object id="${wrapperId}" name="Upright plaque" type="model"><components>`);
+  parts.forEach((p, i) => model.push(`<component objectid="${i+1}"/>`));
+  model.push('</components></object></resources>');
+  model.push(`<build><item objectid="${wrapperId}" transform="1 0 0 0 1 0 0 0 1 0 0 0" printable="1"/></build></model>`);
+  files['3D/3dmodel.model'] = model.join('\n');
+
+  const cfg = ['<?xml version="1.0" encoding="UTF-8"?>', '<config>', `  <object id="${wrapperId}">`,
+    '    <metadata key="name" value="Upright plaque"/>', '    <metadata key="extruder" value="1"/>'];
+  parts.forEach((p, i) => cfg.push(`    <part id="${i+1}" subtype="${p.subtype || 'normal_part'}">`,
+    `      <metadata key="name" value="${esc(p.name)}"/>`, `      <metadata key="extruder" value="${p.extruder}"/>`, '    </part>'));
+  cfg.push('  </object>', '</config>');
+  files['Metadata/model_settings.config'] = cfg.join('\n');
+
+  // Snapmaker Orca reads Full Spectrum mixes from 'mixed_filament_definitions' (rows split by ';').
+  // Row: component_a, component_b, enabled, custom, mix_b_pct, pointillism, u<id>, cm1 (Cycle mode), <pattern>.
+  // Mixes become filament ids N+1, N+2, … in row order, which is how the parts' extruders refer to them.
+  if (parts.embedMixes && parts.filColours){
+    const mixes = parts.filter(p => p.seq && p.extruder > 4).sort((a, b) => a.extruder - b.extruder);
+    const rows = mixes.map((p, i) => `1,2,1,1,50,0,u${i+1},cm1,${patternString(p.seq)}`);
+    files['Metadata/project_settings.config'] = JSON.stringify({
+      filament_colour: parts.filColours,
+      mixed_filament_definitions: rows.join(';'),
+    }, null, 4);
+  }
+
+  files['[Content_Types].xml'] = '<?xml version="1.0" encoding="UTF-8"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/><Default Extension="config" ContentType="text/xml"/></Types>';
+  files['_rels/.rels'] = '<?xml version="1.0" encoding="UTF-8"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>';
+  return files;
+}
+
+// ---------- zip (deflate via CompressionStream, falls back to store) ----------
+const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++){ let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8){ let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC_TABLE[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+async function deflateRaw(u8){
+  if (typeof CompressionStream === 'undefined') return null;
+  try {
+    const cs = new CompressionStream('deflate-raw');
+    const buf = await new Response(new Blob([u8]).stream().pipeThrough(cs)).arrayBuffer();
+    return new Uint8Array(buf);
+  } catch { return null; }
+}
+async function makeZip(files){
+  const enc = new TextEncoder(), chunks = [], central = [];
+  let offset = 0;
+  for (const [name, text] of Object.entries(files)){
+    const data = enc.encode(text), nameB = enc.encode(name), crc = crc32(data);
+    const comp = await deflateRaw(data), method = comp ? 8 : 0, body = comp || data;
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, method, true);
+    lh.setUint16(12, 0x0021, true); // DOS date 1980-01-01
+    lh.setUint32(14, crc, true); lh.setUint32(18, body.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, nameB.length, true);
+    chunks.push(new Uint8Array(lh.buffer), nameB, body);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, method, true); ch.setUint16(14, 0x0021, true);
+    ch.setUint32(16, crc, true); ch.setUint32(20, body.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, nameB.length, true);
+    ch.setUint32(42, offset, true);
+    central.push(new Uint8Array(ch.buffer), nameB);
+    offset += 30 + nameB.length + body.length;
+  }
+  const cdSize = central.reduce((a, c) => a + c.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, Object.keys(files).length, true); end.setUint16(10, Object.keys(files).length, true);
+  end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+  return new Blob([...chunks, ...central, new Uint8Array(end.buffer)], {type: 'model/3mf'});
+}
+
+async function exportFile(){
+  if (!result) return;
+  $('export').disabled = true; $('status').textContent = 'Building mesh…';
+  await new Promise(r => setTimeout(r, 20));
+  const parts = buildParts(result);
+  const tris = parts.reduce((a, p) => a + p.tris.length/3, 0);
+  $('status').textContent = `Writing 3MF (${tris.toLocaleString()} triangles)…`;
+  await new Promise(r => setTimeout(r, 20));
+  const blob = await makeZip(build3MF(parts));
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'upright-plaque.3mf'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  $('status').textContent = `Exported ${parts.length} parts, ${(blob.size/1048576).toFixed(1)} MB.`;
+  $('export').disabled = false;
+  window.__lastExport = {parts: parts.map(p => ({name: p.name, extruder: p.extruder, tris: p.tris.length/3})), size: blob.size, blob};
+}
+
+// ---------- wiring ----------
+// Load any image file into an <img>. HEIC/HEIF (iPhone photos) decode natively in Safari;
+// elsewhere they are converted with heic2any, fetched only when needed.
+const isHeic = f => /\.(heic|heif)$/i.test(f.name) || /image\/hei[cf]/i.test(f.type);
+function imgFromBlob(blob){
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(blob), im = new Image();
+    im.onload = () => res(im); im.onerror = () => { URL.revokeObjectURL(url); rej(new Error('decode failed')); };
+    im.src = url;
+  });
+}
+// heic-to bundles a current libheif, which reads newer iPhone HEIC variants that older converters reject.
+let heicLib = null;
+function loadHeicLib(){
+  heicLib = heicLib || import('https://cdn.jsdelivr.net/npm/heic-to@1.6.6/dist/heic-to.js')
+    .then(m => m.heicTo)
+    .catch(e => { heicLib = null; throw new Error('Could not download the HEIC converter (needs internet).'); });
+  return heicLib;
+}
+async function loadImageFile(f, statusEl){
+  if (!f) throw new Error('no file');
+  try { return await imgFromBlob(f); }
+  catch (e) {
+    if (!isHeic(f)) throw new Error(`Couldn't read ${f.name}. Try a JPG or PNG.`);
+  }
+  statusEl.textContent = 'Converting HEIC photo…';
+  const heicTo = await loadHeicLib();
+  let out;
+  try { out = await heicTo({blob: f, type: 'image/jpeg', quality: 0.92}); }
+  catch (e) {
+    throw new Error(`Couldn't convert ${f.name} (${e && e.message || e}). Open it in Safari, or export it from Photos as JPEG.`);
+  }
+  return imgFromBlob(out);
+}
+async function loadFile(f){
+  if (!f) return;
+  $('status').textContent = `Loading ${f.name}…`;
+  try {
+    const prev = img, keep = $('keepDepth').checked && depthSrc;
+    img = await loadImageFile(f, $('status'));
+    if (!keep) depthSrc = null;
+    else if (prev && Math.abs(img.naturalWidth/img.naturalHeight - prev.naturalWidth/prev.naturalHeight) > 0.02)
+      $('depthStatus').innerHTML = '<span class="warn">Kept the previous depth, but this image has a different shape, so the depth is stretched to fit. Crop both the same way for a good match.</span>';
+    run(); if (window.onNewImage && !keep) onNewImage(f);
+  }
+  catch (e) { $('status').innerHTML = `<span class="warn">${e.message}</span>`; }
+}
+buildFilamentUI();
+const drop = $('drop');
+drop.addEventListener('click', () => $('file').click());
+$('file').addEventListener('change', e => loadFile(e.target.files[0]));
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); loadFile(e.dataTransfer.files[0]); });
+document.querySelectorAll('aside input, aside select').forEach(el => { if (el.id !== 'file') el.addEventListener('input', schedule); });
+$('export').addEventListener('click', exportFile);
+$('fitU1').addEventListener('click', fitToU1);
+[0,1,2,3].forEach(k => $('fn'+k).addEventListener('input', refreshFilOptions));
+$('wall').addEventListener('change', () => {
+  if ($('wall').checked){
+    if (parseFloat($('thick').value) < 6) $('thick').value = 6; // keyholes need ~5 mm of solid back
+    if (parseFloat($('baseh').value) > 0) $('baseh').dataset.standing = $('baseh').value; $('baseh').value = 0; // no stand on a wall
+  } else if ($('baseh').dataset.standing){ $('baseh').value = $('baseh').dataset.standing; }
+  $('fitNote').textContent = $('wall').checked ? 'Wall mount: no stand (raise Base height for a flush bottom border), back thickness ≥ 6 mm, keyhole slots in the back. Add a brim in Orca so the thin plaque stays put while printing.' : '';
+  run();
+});
+const renumber = () => { $('mixStart').disabled = $('preassign').checked; if (result){ result.slots = assignSlots(result.pal, result.map, result.settings); renderRecipe(result, result.settings); } if (window.refreshCardPreview) refreshCardPreview(); };
+$('mixStart').addEventListener('input', renumber); $('preassign').addEventListener('change', renumber); $('mixStart').disabled = $('preassign').checked;
+$('far').addEventListener('click', e => {
+  if (!result) return;
+  const rect = e.target.getBoundingClientRect();
+  const cx = (e.clientX - rect.left)/rect.width*result.cols, cy = (e.clientY - rect.top)/rect.height*result.rows;
+  drawClose(result, result.settings, cx, cy);
+});
+window.__loadImageUrl = url => { const im = new Image(); im.onload = () => { img = im; run(); }; im.src = url; };
+</script>
+
+<script>
+"use strict";
+// ---------- calibration store (per-viewer, browser storage) ----------
+const CALIB_KEY = 'umf.calibration.v1', CARD_KEY = 'umf.lastCard.v1';
+const store = {
+  get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+let calib = store.get(CALIB_KEY) || {fils: null, entries: {}};
+function mixKey(counts, L){ return `${L}:${counts.join('')}`; }
+// Measurements only apply to the filament set they were printed with (same colors in the same slots).
+function calibLookup(key, fils){
+  if (!calib.entries[key]) return null;
+  if (calib.fils && fils && calib.fils.some((h, i) => !fils[i] || h.toLowerCase() !== rgbToHex(fils[i].rgb).toLowerCase())) return null;
+  return calib.entries[key];
+}
+function modelCandidates(s){ const saved = calib; calib = {entries: {}}; try { return buildCandidates(s.fils, s.L, s.transl); } finally { calib = saved; } }
+function calibSummary(){
+  const n = Object.keys(calib.entries).length;
+  if (!n) return 'No calibration yet: colors are predicted.';
+  const now = readSettings().fils.map(f => rgbToHex(f.rgb));
+  const changed = calib.fils && calib.fils.some((h, i) => h.toLowerCase() !== now[i].toLowerCase());
+  return changed ? `Calibration saved for a different filament set (${n} mixes); not used with the current slots.` : `${n} measured mixes in use.`;
+}
+
+// ---------- swatch card ----------
+// Tiles are short and laid out wide: card height (layers) is what costs tool changes, not area.
+const TILE_W = 9, TILE_H = 3, GUT = 1.6;
+let card = null;
+
+function cardItems(s){
+  const cands = buildCandidates(s.fils, s.L, s.transl);
+  if ($('cardMode').value === 'palette' && result && result.settings.L === s.L){
+    const keys = new Set(result.slots.map(e => e.p.key));
+    const picked = cands.filter(c => keys.has(c.key));
+    if (picked.length) return picked;
+  }
+  return cands;
+}
+
+function buildCard(){
+  const s = readSettings(), items = cardItems(s);
+  s.based = 16; s.relief = false; s.wall = false; s.frameW = 0; // the card is short: a small stand is enough, and it stays flat for measuring
+  const pures = items.filter(p => p.pure).sort((a, b) => a.filament - b.filament), mixes = items.filter(p => !p.pure);
+  const ordered = [...pures, ...mixes];
+  const nc = Math.max(1, Math.min(ordered.length, Math.ceil(ordered.length / Math.max(1, Math.round(Math.sqrt(ordered.length / 6)))))), nr = Math.ceil(ordered.length / nc);
+  const rowH = s.L * s.lh;
+  const tw = Math.max(2, Math.round(TILE_W / s.colw)), gw = Math.max(1, Math.round(GUT / s.colw));
+  const th = Math.max(2, Math.round(TILE_H / rowH)), gh = Math.max(1, Math.round(GUT / rowH));
+  const cols = nc*tw + (nc+1)*gw, rows = nr*th + (nr+1)*gh;
+  const pal = ordered.slice();
+  let sep = pal.findIndex(p => p.pure && p.filament === s.basefil);
+  if (sep < 0){ pal.push(buildCandidates(s.fils, s.L, s.transl).find(c => c.pure && c.filament === s.basefil)); sep = pal.length - 1; }
+  const map = new Uint16Array(cols*rows).fill(sep);
+  ordered.forEach((p, i) => {
+    const cx = i % nc, cy = Math.floor(i / nc), x0 = gw + cx*(tw+gw), y0 = gh + cy*(th+gh);
+    for (let y = y0; y < y0+th; y++) for (let x = x0; x < x0+tw; x++) map[y*cols + x] = i;
+  });
+  let next = mixStart();
+  const slots = pal.map(p => ({p, slot: p.pure ? p.filament + 1 : next++}));
+  const tiles = ordered.map((p, i) => ({key: p.key, seq: p.seq, slot: slots[i].slot}));
+  return {cols, rows, rowH, map, pal, slots, colw: s.colw, settings: s,
+          layout: {nc, nr, tw, th, gw, gh, L: s.L, basefil: s.basefil, tiles, fils: s.fils.map(f => rgbToHex(f.rgb))}};
+}
+
+function drawCardKey(c){
+  const s = c.settings, lay = c.layout, ppm = 7;
+  const W = c.cols * s.colw, H = c.rows * c.rowH;
+  const cv = $('cardKey'); cv.width = Math.round(W*ppm); cv.height = Math.round(H*ppm);
+  cv.style.width = '100%'; cv.style.imageRendering = 'auto';
+  const g = cv.getContext('2d');
+  g.fillStyle = rgbToHex(s.fils[lay.basefil].rgb); g.fillRect(0, 0, cv.width, cv.height);
+  const tileWmm = lay.tw*s.colw, tileHmm = lay.th*c.rowH, gwmm = lay.gw*s.colw, ghmm = lay.gh*c.rowH;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  lay.tiles.forEach((t, i) => {
+    const p = c.pal[i], cx = i % lay.nc, cy = Math.floor(i / lay.nc);
+    const x = (gwmm + cx*(tileWmm+gwmm))*ppm, y = (ghmm + cy*(tileHmm+ghmm))*ppm;
+    g.fillStyle = rgbToHex(p.srgb); g.fillRect(x, y, tileWmm*ppm, tileHmm*ppm);
+    g.fillStyle = p.lab[0] > 60 ? '#111' : '#fff';
+    g.font = `600 ${Math.round(tileHmm*ppm*0.3)}px system-ui`; g.fillText(String(t.slot), x + tileWmm*ppm/2, y + tileHmm*ppm*0.36);
+    g.font = `${Math.round(tileHmm*ppm*0.2)}px ui-monospace,monospace`;
+    g.fillText(p.pure ? 'pure' : patternString(t.seq), x + tileWmm*ppm/2, y + tileHmm*ppm*0.72);
+  });
+}
+
+function refreshCardPreview(){
+  try { card = buildCard(); drawCardKey(card); } catch (e) { console.error(e); return; }
+  const lay = card.layout, mixes = lay.tiles.filter(t => t.slot > 4).length, s = card.settings;
+  let swaps = 0; // same estimate as the plaque: distinct filaments needed per layer
+  for (let y = 0; y < card.rows; y++){ const present = new Set(); for (let x = 0; x < card.cols; x++) present.add(card.map[y*card.cols+x]);
+    for (let t = 0; t < s.L; t++){ const f = new Set(); for (const k of present) f.add(card.pal[k].seq[t]); if (f.size > 1) swaps += f.size; } }
+  const hrs = swaps * (parseFloat($('swapS').value) || 30) / 3600;
+  $('cardStatus').textContent = `${lay.tiles.length} tiles (${mixes} mixes, slots ${mixStart()}–${mixStart() - 1 + mixes}) · ${(card.cols*s.colw).toFixed(0)} × ${(card.rows*card.rowH + s.baseh).toFixed(0)} mm · ~${swaps} tool changes ≈ ${hrs.toFixed(1)} h`;
+}
+
+async function exportCard(){
+  refreshCardPreview(); if (!card) return;
+  $('cardExport').disabled = true;
+  try {
+    const blob = await makeZip(build3MF(buildParts(card)));
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `swatch-card-${card.layout.L}L.3mf`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    store.set(CARD_KEY, card.layout);
+    $('cardStatus').textContent += ' · exported. Enter the mixes from the card key in Orca, slot by slot.';
+    window.__lastCardBlob = blob;
+  } finally { $('cardExport').disabled = false; }
+}
+
+// ---------- photo calibration ----------
+const CORNERS = ['top-left', 'top-right', 'bottom-right', 'bottom-left'];
+let photo = null, clicks = [], measured = null;
+
+function drawPhoto(samples){
+  const cv = $('photo'), g = cv.getContext('2d');
+  g.putImageData(photo.data, 0, 0);
+  const r = Math.max(4, cv.width / 150);
+  g.lineWidth = Math.max(2, r/2);
+  clicks.forEach((p, i) => { g.strokeStyle = '#ff2d55'; g.beginPath(); g.arc(p[0], p[1], r*1.6, 0, 7); g.stroke(); g.fillStyle = '#ff2d55'; g.font = `${r*3}px system-ui`; g.fillText(String(i+1), p[0] + r*2, p[1] - r*2); });
+  if (samples) for (const s of samples){
+    g.strokeStyle = '#00e0ff'; g.strokeRect(s.tile[0] - s.rt, s.tile[1] - s.rt, s.rt*2, s.rt*2);
+    g.strokeStyle = '#ffd60a'; g.strokeRect(s.gut[0] - s.rg, s.gut[1] - s.rg, s.rg*2, s.rg*2);
+  }
+  $('photoHint').textContent = clicks.length < 4 ? `click the center of the ${CORNERS[clicks.length]} tile` : 'cyan = tile sample, yellow = white reference';
+}
+
+async function loadPhoto(f){
+  if (!f) return;
+  $('calibStatus').textContent = `Loading ${f.name}…`;
+  try {
+    const im = await loadImageFile(f, $('calibStatus'));
+    const scale = Math.min(1, 1600 / Math.max(im.naturalWidth, im.naturalHeight));
+    const cv = $('photo'); cv.width = Math.round(im.naturalWidth*scale); cv.height = Math.round(im.naturalHeight*scale);
+    cv.style.width = '100%'; cv.style.imageRendering = 'auto';
+    const g = cv.getContext('2d'); g.drawImage(im, 0, 0, cv.width, cv.height);
+    photo = {data: g.getImageData(0, 0, cv.width, cv.height)};
+    clicks = []; measured = null; $('calibApply').disabled = true; $('photoReset').disabled = false;
+    $('calibCompare').innerHTML = '';
+    const lay = store.get(CARD_KEY);
+    $('calibStatus').textContent = lay ? `Matching against your last exported card (${lay.tiles.length} tiles, ${lay.nc} × ${lay.nr}).`
+                                       : 'Export a swatch card first so the page knows its layout.';
+    drawPhoto();
+  } catch (e) { $('calibStatus').innerHTML = `<span class="warn">${e.message}</span>`; }
+}
+
+function avgLin(cx, cy, r){
+  const {width, height, data} = photo.data, acc = [0,0,0]; let n = 0;
+  const x0 = Math.max(0, Math.round(cx - r)), x1 = Math.min(width-1, Math.round(cx + r));
+  const y0 = Math.max(0, Math.round(cy - r)), y1 = Math.min(height-1, Math.round(cy + r));
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){
+    const i = (y*width + x)*4; acc[0] += s2l(data[i]/255); acc[1] += s2l(data[i+1]/255); acc[2] += s2l(data[i+2]/255); n++;
+  }
+  return acc.map(v => v / Math.max(1, n));
+}
+
+function measureCard(){
+  const lay = store.get(CARD_KEY); if (!lay || clicks.length < 4) return;
+  const [TL, TR, BR, BL] = clicks;
+  const at = (u, v) => [0,1].map(k => (1-v)*((1-u)*TL[k] + u*TR[k]) + v*((1-u)*BL[k] + u*BR[k]));
+  const du = 1 / Math.max(1, lay.nc - 1), dv = 1 / Math.max(1, lay.nr - 1);
+  const pitchPx = lay.nc > 1 ? Math.hypot(TR[0]-TL[0], TR[1]-TL[1]) / (lay.nc - 1) : 40;
+  const tileFrac = lay.tw / (lay.tw + lay.gw), gutFrac = lay.gw / (lay.tw + lay.gw);
+  const rt = Math.max(1, pitchPx * tileFrac * 0.22), rg = Math.max(1, pitchPx * gutFrac * 0.3);
+  const baseLin = hexToRgb(lay.fils[lay.basefil]).map(s2l);
+  const samples = [];
+  lay.tiles.forEach((t, i) => {
+    const cx = i % lay.nc, cy = Math.floor(i / lay.nc);
+    const tile = at(cx*du, cy*dv), gut = at((cx - 0.5)*du, cy*dv); // gutter strip just left of the tile
+    const tl = avgLin(tile[0], tile[1], rt), gl = avgLin(gut[0], gut[1], rg);
+    // white-balance each tile against the base-filament gutter next to it (evens out lighting)
+    const lin = tl.map((v, k) => clamp01(v * baseLin[k] / Math.max(1e-4, gl[k])));
+    samples.push({key: t.key, slot: t.slot, seq: t.seq, hex: rgbToHex(lin.map(l2s)), lab: linToLab(...lin), tile, gut, rt, rg});
+  });
+  measured = samples;
+  drawPhoto(samples);
+  renderCompare(lay);
+  $('calibApply').disabled = false;
+}
+
+function renderCompare(lay){
+  const s = readSettings();
+  const model = new Map(buildCandidatesForL(s, lay.L).map(c => [c.key, c]));
+  const de = (a, b) => Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]);
+  let sum = 0;
+  const cells = measured.map(m => {
+    const p = model.get(m.key), d = p ? de(p.lab, m.lab) : 0; sum += d;
+    return `<div title="slot ${m.slot} · ΔE ${d.toFixed(1)}" style="display:inline-flex;flex-direction:column;align-items:center;margin:3px;font-size:11px;color:var(--muted)">
+      <span style="display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden"><i style="width:22px;height:22px;background:${p ? rgbToHex(p.srgb) : '#0000'}"></i><i style="width:22px;height:22px;background:${m.hex}"></i></span>${m.slot}</div>`;
+  });
+  $('calibCompare').innerHTML = `<div style="color:var(--muted);margin-bottom:4px">Left half = predicted, right half = measured. Average difference ΔE ${(sum/measured.length).toFixed(1)} (under 5 is close; over 15 means the model was far off, or a corner click missed).</div>` + cells.join('');
+}
+function buildCandidatesForL(s, L){ return modelCandidates({...s, L}); }
+
+function applyCalibration(){
+  if (!measured) return;
+  const lay = store.get(CARD_KEY);
+  calib = {fils: lay ? lay.fils : readSettings().fils.map(f => rgbToHex(f.rgb)), entries: {...calib.entries}};
+  for (const m of measured) calib.entries[m.key] = m.hex;
+  store.set(CALIB_KEY, calib);
+  $('calibStatus').textContent = calibSummary();
+  run(); refreshCardPreview();
+}
+
+// ---------- wiring ----------
+$('cardExport').addEventListener('click', exportCard);
+$('cardMode').addEventListener('change', refreshCardPreview);
+document.querySelectorAll('aside input, aside select').forEach(el => { if (el.id !== 'file') el.addEventListener('input', () => setTimeout(refreshCardPreview, 200)); });
+$('photoBtn').addEventListener('click', () => $('photoFile').click());
+$('photoFile').addEventListener('change', e => loadPhoto(e.target.files[0]));
+$('photoReset').addEventListener('click', () => { clicks = []; measured = null; $('calibApply').disabled = true; $('calibCompare').innerHTML = ''; drawPhoto(); });
+$('photo').addEventListener('click', e => {
+  if (!photo || clicks.length >= 4) return;
+  const r = e.target.getBoundingClientRect();
+  clicks.push([(e.clientX - r.left) / r.width * e.target.width, (e.clientY - r.top) / r.height * e.target.height]);
+  drawPhoto();
+  if (clicks.length === 4) measureCard();
+});
+$('calibApply').addEventListener('click', applyCalibration);
+$('calibClear').addEventListener('click', () => { calib = {fils: null, entries: {}}; store.set(CALIB_KEY, calib); $('calibStatus').textContent = calibSummary(); run(); refreshCardPreview(); });
+$('calibSave').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify({calibration: calib, card: store.get(CARD_KEY)}, null, 2)], {type: 'application/json'}));
+  a.download = 'mix-calibration.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+});
+$('calibLoadBtn').addEventListener('click', () => $('calibFile').click());
+$('calibFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text());
+    if (!j.calibration || !j.calibration.entries) throw new Error('not a calibration file');
+    calib = j.calibration; store.set(CALIB_KEY, calib); if (j.card) store.set(CARD_KEY, j.card);
+    $('calibStatus').textContent = calibSummary(); run(); refreshCardPreview();
+  } catch (err) { $('calibStatus').innerHTML = `<span class="warn">Couldn't load: ${err.message}</span>`; }
+});
+$('calibStatus').textContent = calibSummary();
+refreshCardPreview();
+
+// ---------- filament set finder ----------
+const SPOOLS_KEY = 'umf.spools.v1';
+const DEFAULT_SPOOLS = [
+  {name: 'White', color: '#f2f1ec', on: true}, {name: 'Cyan', color: '#1ea5e6', on: true},
+  {name: 'Magenta', color: '#e3207f', on: true}, {name: 'Yellow', color: '#f6e11c', on: true},
+  {name: 'Black', color: '#1c1c1c', on: true},
+];
+let spools = store.get(SPOOLS_KEY) || DEFAULT_SPOOLS.map(s => ({...s}));
+function saveSpools(){ store.set(SPOOLS_KEY, spools); }
+function renderSpools(){
+  const box = $('spools'); box.innerHTML = '';
+  spools.forEach((sp, i) => {
+    const row = document.createElement('div'); row.className = 'fil'; row.style.gridTemplateColumns = '22px 36px 1fr 24px';
+    row.innerHTML = `<input type="checkbox" ${sp.on ? 'checked' : ''} title="include in search"><input type="color" value="${sp.color}"><input type="text" value="${sp.name}"><button title="remove" style="padding:2px 6px">×</button>`;
+    const [cb, col, nm, rm] = row.children;
+    cb.onchange = () => { sp.on = cb.checked; saveSpools(); };
+    col.oninput = () => { sp.color = col.value; saveSpools(); };
+    nm.oninput = () => { sp.name = nm.value; saveSpools(); };
+    rm.onclick = () => { spools.splice(i, 1); saveSpools(); renderSpools(); };
+    box.appendChild(row);
+  });
+}
+function combos(arr, k){ const out = []; const rec = (start, acc) => { if (acc.length === k){ out.push(acc.slice()); return; } for (let i = start; i < arr.length; i++){ acc.push(arr[i]); rec(i+1, acc); acc.pop(); } }; rec(0, []); return out; }
+
+async function findBestSet(){
+  if (!img){ $('setStatus').textContent = 'Load an image first.'; return; }
+  const pool = spools.filter(s => s.on);
+  if (pool.length < 4){ $('setStatus').textContent = 'Tick at least 4 spools.'; return; }
+  const base = readSettings(), smp = sampleImage(base), sets = combos(pool, 4), scored = [];
+  $('findSet').disabled = true;
+  const saved = calib; calib = {entries: {}}; // compare sets on the model alone; calibration is tied to one slot layout
+  try {
+    for (let i = 0; i < sets.length; i++){
+      $('setStatus').textContent = `Trying set ${i+1} of ${sets.length}…`;
+      await new Promise(r => setTimeout(r, 0));
+      const s = {...base, fils: sets[i].map(sp => ({name: sp.name, rgb: hexToRgb(sp.color)}))};
+      const {r} = compute(s, smp);
+      scored.push({set: sets[i], score: scoreResult(r), r});
+    }
+  } finally { calib = saved; $('findSet').disabled = false; }
+  scored.sort((a, b) => a.score - b.score);
+  const cur = scored.find(e => e.set.every((sp, k) => sp.color === rgbToHex(base.fils[k].rgb)));
+  $('setStatus').textContent = `Lower is closer to the original (mean ΔE).` + (cur ? ` Your current slots score ${cur.score.toFixed(1)}.` : '');
+  const box = $('setResults'); box.innerHTML = '';
+  for (const e of scored.slice(0, 4)){
+    const row = document.createElement('div');
+    row.style.cssText = 'display:grid;grid-template-columns:72px 1fr;gap:8px;align-items:center;margin-top:8px';
+    const cv = document.createElement('canvas'); cv.width = e.r.cols; cv.height = e.r.rows;
+    const g = cv.getContext('2d'), id = g.createImageData(cv.width, cv.height);
+    const cols = e.r.pal.map(p => p.srgb.map(v => Math.round(v*255)));
+    for (let i = 0; i < cv.width*cv.height; i++){ const c = cols[e.r.map[i]]; id.data.set([c[0], c[1], c[2], 255], i*4); }
+    g.putImageData(id, 0, 0);
+    cv.style.cssText = `width:72px;aspect-ratio:${e.r.cols*e.r.colw}/${e.r.rows*e.r.rowH};image-rendering:auto;border-radius:4px`;
+    const info = document.createElement('div');
+    info.innerHTML = `<div>${e.set.map(sp => `<span class="sw" style="width:14px;height:14px;background:${sp.color}"></span> ${sp.name}`).join(' &nbsp;')}</div>
+      <div style="color:var(--muted)">ΔE ${e.score.toFixed(1)}</div>`;
+    const use = document.createElement('button'); use.textContent = 'Use this set'; use.style.marginTop = '4px';
+    use.onclick = () => {
+      e.set.forEach((sp, k) => { $('fc'+k).value = sp.color; $('fn'+k).value = sp.name; });
+      refreshFilOptions();
+      const lightest = e.set.reduce((bi, sp, k, arr) => srgbToLab(hexToRgb(sp.color))[0] > srgbToLab(hexToRgb(arr[bi].color))[0] ? k : bi, 0);
+      $('basefil').value = lightest;
+      run(); refreshCardPreview(); $('calibStatus').textContent = calibSummary();
+    };
+    info.appendChild(use);
+    row.append(cv, info); box.appendChild(row);
+  }
+}
+$('addSpool').addEventListener('click', () => { spools.push({name: 'New spool', color: '#888888', on: true}); saveSpools(); renderSpools(); });
+$('findSet').addEventListener('click', findBestSet);
+renderSpools();
+
+// ---------- AI depth (Depth Anything V2 small, runs locally in the browser) ----------
+const TRANSFORMERS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.1/+esm';
+const DEPTH_MODEL = 'onnx-community/depth-anything-v2-small';
+let depthPipe = null;
+async function getDepthPipe(){
+  if (depthPipe) return depthPipe;
+  const T = await import(TRANSFORMERS_URL);
+  const progress = p => {
+    if (p.status === 'progress' && p.total) $('depthStatus').textContent = `Downloading model… ${Math.round(100*p.loaded/p.total)}%`;
+  };
+  const tries = navigator.gpu ? [{device: 'webgpu', dtype: 'fp16'}, {device: 'wasm', dtype: 'q8'}] : [{device: 'wasm', dtype: 'q8'}];
+  let lastErr;
+  for (const opt of tries){
+    try { depthPipe = await T.pipeline('depth-estimation', DEPTH_MODEL, {...opt, progress_callback: progress}); depthPipe.__opt = opt; return depthPipe; }
+    catch (e) { lastErr = e; console.warn('depth pipeline failed with', opt, e); }
+  }
+  throw lastErr;
+}
+async function estimateDepth(){
+  if (!img){ $('depthStatus').textContent = 'Load an image first.'; return; }
+  $('depthBtn').disabled = true;
+  try {
+    $('depthStatus').textContent = 'Loading depth model…';
+    const pipe = await getDepthPipe();
+    $('depthStatus').textContent = 'Estimating depth…';
+    await new Promise(r => setTimeout(r, 20));
+    const c = document.createElement('canvas'), sc = Math.min(1, 768 / Math.max(img.naturalWidth, img.naturalHeight));
+    c.width = Math.round(img.naturalWidth*sc); c.height = Math.round(img.naturalHeight*sc);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    const t0 = performance.now();
+    let out = await pipe(c.toDataURL('image/jpeg', 0.92));
+    if (Array.isArray(out)) out = out[0];
+    depthSrc = out.depth.toCanvas();
+    $('relief').checked = true;
+    $('depthStatus').textContent = `Depth ready (${pipe.__opt.device}, ${((performance.now()-t0)/1000).toFixed(1)} s). Brighter in the model = nearer.`;
+    run();
+  } catch (e) {
+    console.error(e);
+    $('depthStatus').innerHTML = `<span class="warn">Depth failed: ${e.message || e}</span>`;
+  } finally { $('depthBtn').disabled = false; }
+}
+$('depthBtn').addEventListener('click', estimateDepth);
+
+// ---------- iPhone depth: read the auxiliary depth/disparity image straight out of the HEIC ----------
+// The photo's depth map is a separate small HEVC image linked to the primary image by an 'auxl'
+// reference. We copy that one item (with its codec config and orientation) into a minimal HEIC of its
+// own, then decode it with the same HEIC path as photos.
+function parseHeif(buf){
+  const dv = new DataView(buf), u8 = new Uint8Array(buf);
+  const str = (o, n) => String.fromCharCode(...u8.subarray(o, o+n));
+  const readBoxes = (start, end) => {
+    const out = []; let o = start;
+    while (o + 8 <= end){
+      let size = dv.getUint32(o), hdr = 8; const type = str(o+4, 4);
+      if (size === 1){ size = Number(dv.getBigUint64(o+8)); hdr = 16; } else if (size === 0) size = end - o;
+      if (size < 8) break;
+      out.push({type, start: o, body: o + hdr, end: o + size}); o += size;
+    }
+    return out;
+  };
+  const meta = readBoxes(0, buf.byteLength).find(b => b.type === 'meta'); if (!meta) return null;
+  const mb = readBoxes(meta.body + 4, meta.end), get = t => mb.find(b => b.type === t);
+  const pitm = get('pitm'), iinf = get('iinf'), iprp = get('iprp'), iloc = get('iloc');
+  if (!pitm || !iinf || !iprp || !iloc) return null;
+  const primary = u8[pitm.body] === 0 ? dv.getUint16(pitm.body+4) : dv.getUint32(pitm.body+4);
+  const items = new Map();
+  for (const b of readBoxes(iinf.body + (u8[iinf.body] === 0 ? 6 : 8), iinf.end)){
+    if (b.type !== 'infe') continue; const v = u8[b.body]; if (v < 2) continue;
+    let p = b.body + 4; const id = v === 2 ? dv.getUint16(p) : dv.getUint32(p); p += (v === 2 ? 2 : 4) + 2;
+    items.set(id, {id, type: str(p, 4)});
+  }
+  const refs = [], iref = get('iref');
+  if (iref){
+    const w = u8[iref.body] === 0 ? 2 : 4;
+    for (const b of readBoxes(iref.body + 4, iref.end)){
+      let p = b.body; const rd = () => { const x = w === 2 ? dv.getUint16(p) : dv.getUint32(p); p += w; return x; };
+      const from = rd(), n = dv.getUint16(p); p += 2; const to = []; for (let i = 0; i < n; i++) to.push(rd());
+      refs.push({type: b.type, from, to});
+    }
+  }
+  const ip = readBoxes(iprp.body, iprp.end), ipco = ip.find(b => b.type === 'ipco');
+  const props = readBoxes(ipco.body, ipco.end), assoc = new Map();
+  for (const b of ip.filter(b => b.type === 'ipma')){
+    const v = u8[b.body], flags = u8[b.body+3]; let p = b.body + 4; const n = dv.getUint32(p); p += 4;
+    for (let i = 0; i < n; i++){
+      const id = v < 1 ? dv.getUint16(p) : dv.getUint32(p); p += v < 1 ? 2 : 4;
+      const c = u8[p++], list = [];
+      for (let j = 0; j < c; j++){
+        if (flags & 1){ const x = dv.getUint16(p); p += 2; list.push({idx: x & 0x7fff, ess: x >> 15}); }
+        else { const x = u8[p++]; list.push({idx: x & 0x7f, ess: x >> 7}); }
+      }
+      assoc.set(id, list);
+    }
+  }
+  const locs = new Map(); {
+    let p = iloc.body; const v = u8[p]; p += 4;
+    const b1 = u8[p++], b2 = u8[p++], offS = b1 >> 4, lenS = b1 & 15, baseS = b2 >> 4, idxS = (v === 1 || v === 2) ? b2 & 15 : 0;
+    const rdN = n => { let x = 0; for (let i = 0; i < n; i++) x = x*256 + u8[p++]; return x; };
+    const count = v < 2 ? rdN(2) : rdN(4);
+    for (let i = 0; i < count; i++){
+      const id = v < 2 ? rdN(2) : rdN(4); const cm = (v === 1 || v === 2) ? rdN(2) & 15 : 0;
+      rdN(2); const base = rdN(baseS), ec = rdN(2), ext = [];
+      for (let e = 0; e < ec; e++){ if (idxS) rdN(idxS); const off = rdN(offS), len = rdN(lenS); ext.push([base + off, len]); }
+      locs.set(id, {cm, ext});
+    }
+  }
+  const idat = get('idat');
+  const itemData = id => {
+    const L = locs.get(id); if (!L) return null;
+    const parts = L.ext.map(([o, n]) => L.cm === 1 ? u8.subarray(idat.body + o, idat.body + o + n) : u8.subarray(o, o + n));
+    const out = new Uint8Array(parts.reduce((a, q) => a + q.length, 0)); let k = 0; for (const q of parts){ out.set(q, k); k += q.length; } return out;
+  };
+  const propBytes = idx => { const b = props[idx - 1]; return b ? u8.subarray(b.start, b.end) : null; };
+  const propOf = idx => props[idx - 1];
+  const cstr = (o, end) => { let s = ''; for (let i = o; i < end && u8[i]; i++) s += String.fromCharCode(u8[i]); return s; };
+  return {primary, items, refs, assoc, itemData, propBytes, propOf, cstr};
+}
+
+function findDepthItem(h){
+  for (const ref of h.refs){
+    if (ref.type !== 'auxl' || !ref.to.includes(h.primary)) continue;
+    const item = h.items.get(ref.from), list = h.assoc.get(ref.from) || [];
+    const auxC = list.map(a => h.propOf(a.idx)).find(b => b && b.type === 'auxC');
+    if (!auxC) continue;
+    const urn = h.cstr(auxC.body + 4, auxC.end);
+    if (/matte|gainmap|hdr|alpha/i.test(urn) || !/auxid:2|depth|disparity/i.test(urn)) continue;
+    // XMP attached to the aux image says whether it stores depth (far = bright) or disparity (near = bright)
+    let kind = 'disparity';
+    for (const r2 of h.refs) if (r2.type === 'cdsc' && r2.to.includes(ref.from)){
+      const x = h.itemData(r2.from); if (!x) continue;
+      const t = new TextDecoder().decode(x), m = t.match(/AuxiliaryImageType>\s*([a-z]+)/i);
+      if (m) kind = m[1].toLowerCase();
+    }
+    return {id: ref.from, type: item && item.type, urn, kind, props: list};
+  }
+  return null;
+}
+
+function standaloneHeic(h, d){
+  const enc = s => new TextEncoder().encode(s);
+  const u32 = n => Uint8Array.of(n >>> 24, (n >>> 16) & 255, (n >>> 8) & 255, n & 255), u16 = n => Uint8Array.of(n >> 8, n & 255);
+  const cat = arrs => { const out = new Uint8Array(arrs.reduce((a, q) => a + q.length, 0)); let k = 0; for (const q of arrs){ out.set(q, k); k += q.length; } return out; };
+  const box = (type, ...parts) => { const body = cat(parts); return cat([u32(8 + body.length), enc(type), body]); };
+  const full = (type, v, ...parts) => box(type, Uint8Array.of(v, 0, 0, 0), ...parts);
+  const kept = d.props.filter(a => { const b = h.propOf(a.idx); return b && b.type !== 'auxC'; });
+  const ipco = box('ipco', ...kept.map(a => h.propBytes(a.idx)));
+  const ipma = full('ipma', 0, u32(1), u16(1), Uint8Array.of(kept.length), Uint8Array.from(kept.map((a, i) => (a.ess ? 0x80 : 0) | (i + 1))));
+  const data = h.itemData(d.id);
+  const ftyp = box('ftyp', enc('heic'), u32(0), enc('mif1'), enc('heic'));
+  const metaFor = off => full('meta', 0,
+    full('hdlr', 0, u32(0), enc('pict'), new Uint8Array(12), Uint8Array.of(0)),
+    full('pitm', 0, u16(1)),
+    full('iloc', 0, Uint8Array.of(0x44, 0x00), u16(1), u16(1), u16(0), u16(1), u32(off), u32(data.length)),
+    full('iinf', 0, u16(1), full('infe', 2, u16(1), u16(0), enc('hvc1'), Uint8Array.of(0))),
+    box('iprp', ipco, ipma));
+  const metaLen = metaFor(0).length;
+  return cat([ftyp, metaFor(ftyp.length + metaLen + 8), box('mdat', data)]);
+}
+
+let iphoneDepth = null; // {canvas, w, h, kind}
+async function readIphoneDepth(f){
+  const buf = await f.arrayBuffer(), h = parseHeif(buf); if (!h) return null;
+  const d = findDepthItem(h); if (!d) return null;
+  if (d.type !== 'hvc1') throw new Error(`depth map is stored as '${d.type}', which isn't supported yet`);
+  const file = new File([standaloneHeic(h, d)], 'depth.heic', {type: 'image/heic'});
+  const im = await loadImageFile(file, $('depthStatus'));
+  const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+  const g = c.getContext('2d'); g.drawImage(im, 0, 0);
+  if (d.kind === 'depth'){ // store as nearer = brighter, like the AI model
+    const id = g.getImageData(0, 0, c.width, c.height);
+    for (let i = 0; i < id.data.length; i += 4){ const v = 255 - id.data[i]; id.data[i] = id.data[i+1] = id.data[i+2] = v; }
+    g.putImageData(id, 0, 0);
+  }
+  return {canvas: c, w: c.width, h: c.height, kind: d.kind};
+}
+
+function showDepthChoice(){
+  $('iphoneDepthBtn').hidden = !iphoneDepth;
+}
+window.onNewImage = async f => {
+  iphoneDepth = null; showDepthChoice();
+  $('depthStatus').textContent = 'Downloads a ~27 MB model the first time. Without it, relief uses brightness only.';
+  if (!f || !isHeic(f)) return;
+  try {
+    const d = await readIphoneDepth(f);
+    if (!d){ $('depthStatus').textContent = 'No depth map in this photo (take it in Portrait mode, and send the original). You can still estimate depth with AI.'; return; }
+    iphoneDepth = d; depthSrc = d.canvas; showDepthChoice();
+    $('depthStatus').textContent = `Using the iPhone's ${d.kind} map (${d.w} × ${d.h}). Turn on Sculpt to see it.`;
+    run();
+  } catch (e) {
+    console.error(e);
+    $('depthStatus').innerHTML = `<span class="warn">Found a depth map but couldn't read it: ${e.message || e}</span>`;
+  }
+};
+$('iphoneDepthBtn').addEventListener('click', () => {
+  if (!iphoneDepth) return;
+  depthSrc = iphoneDepth.canvas; $('relief').checked = true;
+  $('depthStatus').textContent = `Using the iPhone's ${iphoneDepth.kind} map (${iphoneDepth.w} × ${iphoneDepth.h}).`;
+  run();
+});
+</script>
+</body>
+</html>
