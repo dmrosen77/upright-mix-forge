@@ -141,6 +141,10 @@ ol.steps li{margin:4px 0}
 
     <div class="panel">
       <h2>3D relief</h2>
+      <div id="depthBadge" style="display:flex;gap:10px;align-items:center;margin:0 0 8px">
+        <canvas id="depthThumb" width="1" height="1" style="width:56px;height:56px;object-fit:contain;border-radius:6px;background:var(--field);border:1px solid var(--line);image-rendering:auto"></canvas>
+        <div><div style="color:var(--muted);font-size:12px">Depth source</div><b id="depthSourceLabel">None: no image</b><div id="depthSourceSub" style="color:var(--muted);font-size:12px"></div></div>
+      </div>
       <div class="check"><input type="checkbox" id="relief"><label for="relief">Sculpt the front face</label></div>
       <div class="actions" style="margin-top:4px">
         <button id="depthBtn">Estimate depth with AI</button>
@@ -267,7 +271,9 @@ const DEFAULT_FILS = [
   {name:'Yellow',  color:'#f6e11c'},
 ];
 const $ = id => document.getElementById(id);
-let img = null, result = null, depthSrc = null; // depthSrc: AI depth map (canvas) for img, brighter = nearer
+let img = null, result = null, depthSrc = null; // depthSrc: depth map (canvas) for img, brighter = nearer
+let depthSource = null; // where depthSrc came from: 'iphone' | 'ai', plus depthKept when carried over from a previous image
+let depthKept = false;
 
 function buildFilamentUI(){
   const box = $('filaments'), sel = $('basefil');
@@ -596,6 +602,7 @@ function renderStats(r, s){
   $('stats').innerHTML = [
     ['Grid', `${r.cols} × ${r.rows}`], ['Size', `${sz.W.toFixed(0)} × ${sz.H.toFixed(0)} × ${sz.T.toFixed(1)} mm`],
     ['Layers', `${layers + baseLayers}`], ['Mixes', `${r.slots.filter(e => !e.p.pure).length}`],
+    ['Depth', !s.relief ? 'flat' : depthSrc ? (depthSource === 'iphone' ? 'iPhone depth map' : 'AI estimate') + (depthKept ? ' (kept)' : '') : 'brightness only'],
     ['Tool changes', `~${swaps.toLocaleString()}`], ['Swap time', `~${hours < 10 ? hours.toFixed(1) : Math.round(hours)} h`],
   ].map(([k,v]) => `<span>${k} <b>${v}</b></span>`).join('') +
   (s.wall ? (s.thick >= 3 ? ` <span>Keyholes <b>${(s.keyholes === 'auto' ? (sz.W < 150 ? 1 : 2) : +s.keyholes) === 1 ? '1, centered' : `2, ${(sz.W*0.5).toFixed(0)} mm apart`}</b>, ~${Math.min(15, (sz.H - s.baseh)*0.15).toFixed(0)} mm below the top, on the back (not shown in these front views)</span>` : ` <span class="warn">Back thickness under 3 mm: no room for keyholes.</span>`) : '') +
@@ -719,6 +726,27 @@ function drawOutlines(map, lab, cols, rows, pal, s, ry){
   }
 }
 
+// Always-visible label (and thumbnail) saying where the relief's depth comes from.
+function updateDepthBadge(s){
+  const label = $('depthSourceLabel'), sub = $('depthSourceSub'), th = $('depthThumb'), g = th.getContext('2d');
+  const name = depthSource === 'iphone' ? 'iPhone depth map' : depthSource === 'ai' ? 'AI estimate' : null;
+  if (depthSrc){
+    th.width = depthSrc.width; th.height = depthSrc.height; g.drawImage(depthSrc, 0, 0);
+  } else { th.width = 1; th.height = 1; g.clearRect(0, 0, 1, 1); }
+  if (!img){ label.textContent = 'None: no image'; sub.textContent = ''; return; }
+  const extra = depthSource === 'iphone' && iphoneDepth ? `Read from the photo file: ${iphoneDepth.kind} map, ${iphoneDepth.w} × ${iphoneDepth.h}` : '';
+  if (!s.relief){
+    label.textContent = 'Not used: relief is off';
+    sub.textContent = name ? `${name} available${extra ? ' (' + extra.toLowerCase() + ')' : ''}. Turn on Sculpt to use it.` : 'Turn on Sculpt for a 3D front.';
+  } else if (name){
+    label.textContent = name + (depthKept ? ' (kept from previous image)' : '');
+    sub.textContent = (extra ? extra + '. ' : '') + (s.lumW > 0 ? `Mixed with ${Math.round(s.lumW*100)}% brightness.` : '');
+  } else {
+    label.textContent = 'Brightness only';
+    sub.textContent = 'No depth map: darker areas sit deeper. Estimate depth with AI, or load a Portrait-mode iPhone HEIC.';
+  }
+}
+
 // Pure computation (no drawing) so the filament-set finder can try many combinations.
 function compute(s, smp){
   smp = smp || sampleImage(s);
@@ -775,7 +803,7 @@ function run(){
   result = r;
   drawFar(result, s); drawOrig(result); drawGamut(cands, result.pal);
   drawClose(result, s, result.cols/2, result.rows/2);
-  renderRecipe(result, s); renderStats(result, s);
+  renderRecipe(result, s); renderStats(result, s); updateDepthBadge(s);
   $('export').disabled = false;
   $('status').textContent = `Ready (${Math.round(performance.now() - t0)} ms).`;
 }
@@ -1024,8 +1052,9 @@ async function loadFile(f){
   try {
     const prev = img, keep = $('keepDepth').checked && depthSrc;
     img = await loadImageFile(f, $('status'));
-    if (!keep) depthSrc = null;
-    else if (prev && Math.abs(img.naturalWidth/img.naturalHeight - prev.naturalWidth/prev.naturalHeight) > 0.02)
+    if (!keep){ depthSrc = null; depthSource = null; depthKept = false; }
+    else depthKept = true;
+    if (keep && prev && Math.abs(img.naturalWidth/img.naturalHeight - prev.naturalWidth/prev.naturalHeight) > 0.02)
       $('depthStatus').innerHTML = '<span class="warn">Kept the previous depth, but this image has a different shape, so the depth is stretched to fit. Crop both the same way for a good match.</span>';
     run(); if (window.onNewImage && !keep) onNewImage(f);
   }
@@ -1401,7 +1430,7 @@ async function estimateDepth(){
     const t0 = performance.now();
     let out = await pipe(c.toDataURL('image/jpeg', 0.92));
     if (Array.isArray(out)) out = out[0];
-    depthSrc = out.depth.toCanvas();
+    depthSrc = out.depth.toCanvas(); depthSource = 'ai'; depthKept = false;
     $('relief').checked = true;
     $('depthStatus').textContent = `Depth ready (${pipe.__opt.device}, ${((performance.now()-t0)/1000).toFixed(1)} s). Brighter in the model = nearer.`;
     run();
@@ -1555,8 +1584,8 @@ window.onNewImage = async f => {
   try {
     const d = await readIphoneDepth(f);
     if (!d){ $('depthStatus').textContent = 'No depth map in this photo (take it in Portrait mode, and send the original). You can still estimate depth with AI.'; return; }
-    iphoneDepth = d; depthSrc = d.canvas; showDepthChoice();
-    $('depthStatus').textContent = `Using the iPhone's ${d.kind} map (${d.w} × ${d.h}). Turn on Sculpt to see it.`;
+    iphoneDepth = d; depthSrc = d.canvas; depthSource = 'iphone'; depthKept = false; showDepthChoice();
+    $('depthStatus').textContent = 'Found a depth map in this photo, saved by the iPhone camera.';
     run();
   } catch (e) {
     console.error(e);
@@ -1565,7 +1594,7 @@ window.onNewImage = async f => {
 };
 $('iphoneDepthBtn').addEventListener('click', () => {
   if (!iphoneDepth) return;
-  depthSrc = iphoneDepth.canvas; $('relief').checked = true;
+  depthSrc = iphoneDepth.canvas; depthSource = 'iphone'; depthKept = false; $('relief').checked = true;
   $('depthStatus').textContent = `Using the iPhone's ${iphoneDepth.kind} map (${iphoneDepth.w} × ${iphoneDepth.h}).`;
   run();
 });
